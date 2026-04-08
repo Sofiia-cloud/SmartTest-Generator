@@ -1,6 +1,5 @@
-import { Outlet } from 'react-router-dom';
-import { Header } from '../Header';
-import { Footer } from '../Footer';
+import { Outlet } from "react-router-dom";
+import { Header } from "../Header";
 
 export function StudentLayout() {
   return (
@@ -13,7 +12,6 @@ export function StudentLayout() {
           </div>
         </main>
       </div>
-      <Footer />
     </div>
   );
 }
