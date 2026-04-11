@@ -1,8 +1,8 @@
-import QuizModel, { IQuiz, IQuizQuestion } from '../models/Quiz';
-import QuizAttemptModel, { IQuizAttempt } from '../models/QuizAttempt';
-import DocumentModel from '../models/Document';
-import { generateQuizWithClaude } from './anthropicService';
-import documentService from './documentService';
+import QuizModel, { IQuiz, IQuizQuestion } from "../models/Quiz";
+import QuizAttemptModel, { IQuizAttempt } from "../models/QuizAttempt";
+import DocumentModel from "../models/Document";
+import { generateQuestionsFromText } from "./yandexGptService";
+import documentService from "./documentService";
 
 class QuizService {
   /**
@@ -12,27 +12,29 @@ class QuizService {
     documentId: string;
     title: string;
     numberOfQuestions: number;
-    difficulty: 'easy' | 'medium' | 'hard' | 'mixed';
+    difficulty: "easy" | "medium" | "hard" | "mixed";
     timeLimit?: number;
     passingScore: number;
     category?: string;
     userId: string;
   }): Promise<IQuiz> {
     try {
-      console.log(`Generating quiz: ${data.title} for document: ${data.documentId}`);
+      console.log(
+        `Generating quiz: ${data.title} for document: ${data.documentId}`,
+      );
 
       // Fetch document
       const document = await DocumentModel.findById(data.documentId);
       if (!document) {
-        throw new Error('Document not found');
+        throw new Error("Document not found");
       }
 
       if (!document.content) {
-        throw new Error('Document content is not available');
+        throw new Error("Document content is not available");
       }
 
       // Generate questions using Claude
-      const generatedQuiz = await generateQuizWithClaude({
+      const generatedQuiz = await generateQuestionsFromText({
         content: document.content,
         numberOfQuestions: data.numberOfQuestions,
         difficulty: data.difficulty,
@@ -52,7 +54,7 @@ class QuizService {
           passingScore: data.passingScore,
           category: data.category,
         },
-        status: 'draft',
+        status: "draft",
         createdBy: data.userId,
       });
 
@@ -88,7 +90,9 @@ class QuizService {
    */
   async getPublishedQuizzes(): Promise<IQuiz[]> {
     try {
-      const quizzes = await QuizModel.find({ status: 'published' }).sort({ createdAt: -1 });
+      const quizzes = await QuizModel.find({ status: "published" }).sort({
+        createdAt: -1,
+      });
       return quizzes;
     } catch (error) {
       console.error(`Error fetching published quizzes: ${error}`);
@@ -119,7 +123,9 @@ class QuizService {
         updatedAt: new Date(),
       };
 
-      const quiz = await QuizModel.findByIdAndUpdate(quizId, updateData, { new: true });
+      const quiz = await QuizModel.findByIdAndUpdate(quizId, updateData, {
+        new: true,
+      });
       return quiz;
     } catch (error) {
       console.error(`Error updating quiz: ${error}`);
@@ -135,7 +141,7 @@ class QuizService {
       // Get quiz to find document ID
       const quiz = await QuizModel.findById(quizId);
       if (!quiz) {
-        throw new Error('Quiz not found');
+        throw new Error("Quiz not found");
       }
 
       // Delete the quiz
@@ -162,12 +168,14 @@ class QuizService {
     timeSpent: number;
   }): Promise<IQuizAttempt> {
     try {
-      console.log(`Submitting quiz attempt for quiz: ${data.quizId}, student: ${data.studentId}`);
+      console.log(
+        `Submitting quiz attempt for quiz: ${data.quizId}, student: ${data.studentId}`,
+      );
 
       // Fetch quiz
       const quiz = await QuizModel.findById(data.quizId);
       if (!quiz) {
-        throw new Error('Quiz not found');
+        throw new Error("Quiz not found");
       }
 
       // Calculate score
@@ -221,7 +229,9 @@ class QuizService {
    */
   async getStudentAttempts(studentId: string): Promise<IQuizAttempt[]> {
     try {
-      const attempts = await QuizAttemptModel.find({ studentId }).sort({ completedAt: -1 });
+      const attempts = await QuizAttemptModel.find({ studentId }).sort({
+        completedAt: -1,
+      });
       return attempts;
     } catch (error) {
       console.error(`Error fetching student attempts: ${error}`);
@@ -234,7 +244,9 @@ class QuizService {
    */
   async getQuizAttempts(quizId: string): Promise<IQuizAttempt[]> {
     try {
-      const attempts = await QuizAttemptModel.find({ quizId }).sort({ completedAt: -1 });
+      const attempts = await QuizAttemptModel.find({ quizId }).sort({
+        completedAt: -1,
+      });
       return attempts;
     } catch (error) {
       console.error(`Error fetching quiz attempts: ${error}`);
