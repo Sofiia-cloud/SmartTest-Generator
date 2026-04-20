@@ -1,40 +1,71 @@
-import UserService from "../../services/userService";
 import jwt from "jsonwebtoken";
 import { Request, Response, NextFunction } from "express";
-import { ALL_ROLES } from "shared";
+import * as userService from "../../services/userService";
 
-// Добавляем fallback значение для JWT_SECRET
-const JWT_SECRET = process.env.JWT_SECRET || "my_fallback_jwt_secret_12345";
-
-interface AuthRequest extends Request {
-  user?: Record<string, unknown>;
+export interface AuthRequest extends Request {
+  user?: {
+    id: string;
+    email: string;
+    role: string;
+  };
 }
 
-const requireUser = (allowedRoles: string[] = ALL_ROLES) => {
-  return async (req: AuthRequest, res: Response, next: NextFunction) => {
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!token) return res.status(401).json({ message: "Unauthorized" });
-
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET) as jwt.JwtPayload;
-      const user = await UserService.get(decoded.sub);
-      if (!user) {
-        return res.status(401).json({ error: "User not found" });
-      }
-
-      // If roles are specified, check if user has one of the allowed roles
-      if (allowedRoles && allowedRoles.length > 0) {
-        if (!allowedRoles.includes(user.role)) {
-          return res.status(403).json({ error: "Insufficient permissions" });
-        }
-      }
-
-      req.user = user;
-      next();
-    } catch {
-      return res.status(403).json({ error: "Invalid or expired token" });
+export const requireAuth = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "No token provided" });
     }
+
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "secret",
+    ) as any;
+
+    const user = await userService.findUserById(decoded.id);
+    if (!user) {
+      return res.status(401).json({ error: "User not found" });
+    }
+
+    req.user = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    next();
+  } catch (error) {
+    console.error("Auth error:", error);
+    return res.status(401).json({ error: "Invalid token" });
+  }
+};
+
+export const requireRole = (roles: string[]) => {
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ error: "Insufficient permissions" });
+    }
+    next();
   };
 };
 
-export { requireUser };
+// Alias for backward compatibility
+export const requireUser = (roles: string[]) => {
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    if (roles.length > 0 && !roles.includes(req.user.role)) {
+      return res.status(403).json({ error: "Insufficient permissions" });
+    }
+    next();
+  };
+};

@@ -1,6 +1,5 @@
 import axios from "axios";
 import dotenv from "dotenv";
-import mongoose from "mongoose";
 dotenv.config();
 
 interface GenerateQuestionsParams {
@@ -124,9 +123,9 @@ ${truncatedContent}`;
       throw new Error("YandexGPT returned invalid response format");
     }
 
-    // Трансформация вопросов под схему базы данных
+    // Трансформация вопросов под схему базы данных (БЕЗ mongoose)
     const transformedQuestions = questions.map((q: any, index: number) => ({
-      _id: new mongoose.Types.ObjectId(),
+      id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${index}`, // Уникальный ID без mongoose
       questionText: q.text,
       options: q.options,
       correctAnswer: q.correctAnswer,

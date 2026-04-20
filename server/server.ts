@@ -1,65 +1,46 @@
-// Load environment variables first, before any other imports
-import dotenv from 'dotenv';
+import dotenv from "dotenv";
 dotenv.config();
 
-import express from 'express';
-import { Request, Response } from 'express';
-import basicRoutes from './routes/index';
-import authRoutes from './routes/authRoutes';
-import documentRoutes from './routes/documentRoutes';
-import quizRoutes from './routes/quizRoutes';
-import attemptRoutes from './routes/attemptRoutes';
-import { connectDB } from './config/database';
-import cors from 'cors';
+import "reflect-metadata";
+import express from "express";
+import cors from "cors";
+import session from "express-session";
+import { AppDataSource } from "./config/data-source";
 
-if (!process.env.DATABASE_URL) {
-  console.error("Error: DATABASE_URL variables in .env missing.");
-  process.exit(-1);
-}
+// Import routes
+import authRoutes from "./routes/authRoutes";
+import documentRoutes from "./routes/documentRoutes";
+import quizRoutes from "./routes/quizRoutes";
+import attemptRoutes from "./routes/attemptRoutes";
 
 const app = express();
-const port = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000;
 
-// Pretty-print JSON responses
-app.enable('json spaces');
-// We want to be consistent with URL paths, so we enable strict routing
-app.enable('strict routing');
-
-app.use(cors({}));
+// Middleware
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Database connection
-connectDB();
+// Routes
+app.use("/api/auth", authRoutes);
+app.use("/api/documents", documentRoutes);
+app.use("/api/quizzes", quizRoutes);
+app.use("/api/results", attemptRoutes);
 
-app.on("error", (error: Error) => {
-  console.error(`Server error: ${error.message}`);
-  console.error(error.stack);
+// Health check
+app.get("/", (req, res) => {
+  res.json({ message: "SmartTest API is running!" });
 });
 
-// Basic Routes
-app.use(basicRoutes);
-// Authentication Routes
-app.use('/api/auth', authRoutes);
-// Document Routes
-app.use('/api/documents', documentRoutes);
-// Quiz Routes
-app.use('/api/quizzes', quizRoutes);
-// Quiz Attempt/Result Routes
-app.use('/api/results', attemptRoutes);
-
-// If no routes handled the request, it's a 404
-app.use((req: Request, res: Response) => {
-  res.status(404).send("Page not found.");
-});
-
-// Error handling
-app.use((err: Error, req: Request, res: Response) => {
-  console.error(`Unhandled application error: ${err.message}`);
-  console.error(err.stack);
-  res.status(500).send("There was an error serving your request.");
-});
-
-app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
-});
+// Initialize database and start server
+AppDataSource.initialize()
+  .then(() => {
+    console.log("✅ PostgreSQL connected!");
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running at http://localhost:${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error("❌ Database connection failed:", err);
+    process.exit(1);
+  });

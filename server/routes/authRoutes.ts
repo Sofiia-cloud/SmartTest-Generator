@@ -1,180 +1,81 @@
-import express from 'express';
-import { Request, Response } from 'express';
-import UserService from '../services/userService';
-import { requireUser } from './middlewares/auth';
-import User from '../models/User';
-import { generateAccessToken, generateRefreshToken } from '../utils/auth';
-import jwt from 'jsonwebtoken';
-import { ALL_ROLES } from 'shared';
+import express from "express";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
+import * as userService from "../services/userService";
+import { requireAuth } from "./middlewares/auth";
 
 const router = express.Router();
 
-interface AuthRequest extends Request {
-  user?: Record<string, unknown>;
-}
-
-// Description: Login user with email and password
-// Endpoint: POST /api/auth/login
-// Request: { email: string, password: string }
-// Response: { _id: string, email: string, role: string, ...userData, accessToken: string, refreshToken: string }
-router.post('/login', async (req: Request, res: Response) => {
-  const sendError = (msg: string) => res.status(400).json({ message: msg });
-  const { email, password } = req.body;
-
-  if (!email || !password) {
-    return sendError('Email and password are required');
-  }
-
-  const user = await UserService.authenticateWithPassword(email, password);
-
-  if (user) {
-    const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user);
-
-    user.refreshToken = refreshToken;
-    await user.save();
-
-    // Explicitly construct response with only safe fields (excluding password)
-    console.log('[Login] User object:', { _id: user._id, email: user.email, role: user.role, isActive: user.isActive });
-    const userData = {
-      _id: user._id?.toString() || user._id,
-      email: user.email,
-      role: user.role,
-      createdAt: user.createdAt,
-      lastLoginAt: user.lastLoginAt,
-      isActive: user.isActive,
-    };
-    return res.json({...userData, accessToken, refreshToken});
-  } else {
-    return sendError('Email or password is incorrect');
-
-  }
-});
-
-// Description: Register a new user
-// Endpoint: POST /api/auth/register
-// Request: { email: string, password: string }
-// Response: { _id: string, email: string, role: string, ...userData, accessToken: string, refreshToken: string }
-router.post('/register', async (req: AuthRequest, res: Response) => {
-  if (req.user) {
-    return res.json({ user: req.user });
-  }
+router.post("/register", async (req, res) => {
   try {
-    const user = await UserService.create(req.body);
-    const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user);
+    const { email, password, role } = req.body;
 
-    user.refreshToken = refreshToken;
-    await user.save();
+    if (!email || !password) {
+      return res
+        .status(400)
+        .json({ message: "Email and password are required" });
+    }
 
-    // Explicitly construct response with only safe fields (excluding password)
-    const userData = {
-      _id: user._id,
-      email: user.email,
-      role: user.role,
-      createdAt: user.createdAt,
-      lastLoginAt: user.lastLoginAt,
-      isActive: user.isActive,
-    };
-    return res.status(200).json({...userData, accessToken, refreshToken});
+    const existingUser = await userService.findUserByEmail(email);
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exists" });
+    }
+
+    const newUser = await userService.createUser({ email, password, role });
+    const token = jwt.sign(
+      { id: newUser.id, role: newUser.role },
+      process.env.JWT_SECRET || "secret",
+      { expiresIn: "7d" },
+    );
+
+    res.status(201).json({
+      user: { id: newUser.id, email: newUser.email, role: newUser.role },
+      token,
+    });
   } catch (error) {
-    console.error(`Error while registering user: ${error}`);
-    return res.status(400).json({ error });
+    console.error("Registration error:", error);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-router.post('/logout', async (req: Request, res: Response) => {
-  const { email } = req.body;
-
-  const user = await User.findOne({ email });
-  if (user) {
-    user.refreshToken = null;
-    await user.save();
-  }
-
-  res.status(200).json({ message: 'User logged out successfully.' });
-});
-
-router.post('/refresh', async (req: Request, res: Response) => {
-  const { refreshToken } = req.body;
-
-  if (!refreshToken) {
-    return res.status(401).json({
-      success: false,
-      message: 'Refresh token is required'
-    });
-  }
-
+router.post("/login", async (req, res) => {
   try {
-    // Verify the refresh token
-    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET!) as jwt.JwtPayload;
+    const { email, password } = req.body;
 
-    // Find the user
-    const user = await UserService.get(decoded.sub);
+    if (!email || !password) {
+      return res
+        .status(400)
+        .json({ message: "Email and password are required" });
+    }
 
+    const user = await userService.findUserByEmail(email);
     if (!user) {
-      return res.status(403).json({
-        success: false,
-        message: 'User not found'
-      });
+      return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    if (user.refreshToken !== refreshToken) {
-      return res.status(403).json({
-        success: false,
-        message: 'Invalid refresh token'
-      });
+    const isValid = await bcrypt.compare(password, user.password);
+    if (!isValid) {
+      return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // Generate new tokens
-    const newAccessToken = generateAccessToken(user);
-    const newRefreshToken = generateRefreshToken(user);
+    const token = jwt.sign(
+      { id: user.id, role: user.role },
+      process.env.JWT_SECRET || "secret",
+      { expiresIn: "7d" },
+    );
 
-    // Update user's refresh token in database
-    user.refreshToken = newRefreshToken;
-    await user.save();
-
-    // Explicitly construct response with only safe fields (excluding password)
-    const userData = {
-      _id: user._id,
-      email: user.email,
-      role: user.role,
-      createdAt: user.createdAt,
-      lastLoginAt: user.lastLoginAt,
-      isActive: user.isActive,
-    };
-
-    // Return new tokens
-    return res.status(200).json({
-      success: true,
-      data: {
-        ...userData,
-        accessToken: newAccessToken,
-        refreshToken: newRefreshToken
-      }
+    res.json({
+      user: { id: user.id, email: user.email, role: user.role },
+      token,
     });
-
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorName = error instanceof Error ? error.name : 'UnknownError';
-    console.error(`Token refresh error: ${errorMessage}`);
-
-    if (errorName === 'TokenExpiredError') {
-      return res.status(403).json({
-        success: false,
-        message: 'Refresh token has expired'
-      });
-    }
-
-    return res.status(403).json({
-      success: false,
-      message: 'Invalid refresh token'
-    });
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-router.get('/me', requireUser(ALL_ROLES), async (req: AuthRequest, res: Response) => {
-  return res.status(200).json(req.user);
+router.get("/me", requireAuth, async (req: any, res) => {
+  res.json(req.user);
 });
 
 export default router;

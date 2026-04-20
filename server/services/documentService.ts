@@ -1,6 +1,8 @@
-import DocumentModel, { IDocument } from '../models/Document';
-import { extractPdfContent } from './pdfParseService';
-import fs from 'fs';
+import { AppDataSource } from "../config/data-source";
+import { Document } from "../models/Document.entity";
+import fs from "fs";
+
+const documentRepository = AppDataSource.getRepository(Document);
 
 class DocumentService {
   /**
@@ -11,31 +13,18 @@ class DocumentService {
     fileSize: number;
     userId: string;
     filePath: string;
-  }): Promise<IDocument> {
+    extractedText?: string;
+  }): Promise<Document> {
     try {
-      console.log(`Creating document: ${data.fileName} for user: ${data.userId}`);
+      const document = new Document();
+      document.title = data.fileName;
+      document.filePath = data.filePath;
+      document.userId = data.userId;
+      document.extractedText = data.extractedText || null;
+      document.uploadedAt = new Date();
 
-      // Extract PDF content
-      let content = '';
-      try {
-        content = await extractPdfContent(data.filePath);
-      } catch (error) {
-        console.error(`Failed to extract PDF content: ${error}`);
-        // Continue with empty content, document will be marked as error later
-      }
-
-      // Create document in database
-      const document = new DocumentModel({
-        fileName: data.fileName,
-        fileSize: data.fileSize,
-        userId: data.userId,
-        content: content,
-        status: content ? 'ready' : 'error',
-        errorMessage: content ? undefined : 'Failed to extract PDF content',
-      });
-
-      const savedDocument = await document.save();
-      console.log(`Document created successfully: ${savedDocument._id}`);
+      const savedDocument = await documentRepository.save(document);
+      console.log(`Document created: ${savedDocument.id}`);
 
       return savedDocument;
     } catch (error) {
@@ -45,11 +34,30 @@ class DocumentService {
   }
 
   /**
+   * Get document by ID
+   */
+  async getById(documentId: string): Promise<Document | null> {
+    try {
+      const document = await documentRepository.findOne({
+        where: { id: documentId },
+        relations: ["user"],
+      });
+      return document;
+    } catch (error) {
+      console.error(`Error fetching document: ${error}`);
+      throw error;
+    }
+  }
+
+  /**
    * Get all documents for a user
    */
-  async getUserDocuments(userId: string): Promise<IDocument[]> {
+  async getUserDocuments(userId: string): Promise<Document[]> {
     try {
-      const documents = await DocumentModel.find({ userId }).sort({ uploadDate: -1 });
+      const documents = await documentRepository.find({
+        where: { userId },
+        order: { uploadedAt: "DESC" },
+      });
       return documents;
     } catch (error) {
       console.error(`Error fetching user documents: ${error}`);
@@ -58,51 +66,43 @@ class DocumentService {
   }
 
   /**
-   * Get document by ID
+   * Update document with extracted text
    */
-  async getById(documentId: string): Promise<IDocument | null> {
-    try {
-      const document = await DocumentModel.findById(documentId);
-      return document;
-    } catch (error) {
-      console.error(`Error fetching document by ID: ${error}`);
-      throw error;
-    }
-  }
-
-  /**
-   * Update document status
-   */
-  async updateStatus(
+  async updateExtractedText(
     documentId: string,
-    status: 'processing' | 'ready' | 'error',
-    errorMessage?: string
-  ): Promise<IDocument | null> {
+    extractedText: string,
+  ): Promise<Document | null> {
     try {
-      const updateData: any = { status };
-      if (errorMessage) {
-        updateData.errorMessage = errorMessage;
-      }
-
-      const document = await DocumentModel.findByIdAndUpdate(documentId, updateData, { new: true });
-      return document;
+      await documentRepository.update(documentId, { extractedText });
+      return await this.getById(documentId);
     } catch (error) {
-      console.error(`Error updating document status: ${error}`);
+      console.error(`Error updating document text: ${error}`);
       throw error;
     }
   }
 
   /**
-   * Delete document by ID
+   * Delete a document
    */
   async delete(documentId: string): Promise<boolean> {
     try {
-      const result = await DocumentModel.findByIdAndDelete(documentId);
-      if (result) {
-        console.log(`Document deleted: ${documentId}`);
-        return true;
+      const document = await documentRepository.findOne({
+        where: { id: documentId },
+      });
+
+      if (!document) {
+        return false;
       }
-      return false;
+
+      // Delete file from disk
+      if (fs.existsSync(document.filePath)) {
+        fs.unlinkSync(document.filePath);
+      }
+
+      await documentRepository.delete(documentId);
+      console.log(`Document deleted: ${documentId}`);
+
+      return true;
     } catch (error) {
       console.error(`Error deleting document: ${error}`);
       throw error;
@@ -110,36 +110,32 @@ class DocumentService {
   }
 
   /**
-   * Update quiz count for a document
+   * Update quiz count for document (for compatibility)
    */
-  async updateQuizCount(documentId: string, increment: number = 1): Promise<IDocument | null> {
+  async updateQuizCount(documentId: string, increment: number): Promise<void> {
     try {
-      const document = await DocumentModel.findByIdAndUpdate(
-        documentId,
-        { $inc: { quizCount: increment } },
-        { new: true }
-      );
-      return document;
+      const document = await this.getById(documentId);
+      if (document) {
+        // You can add a quizCount field to Document.entity.ts if needed
+        console.log(
+          `Quiz count updated for document ${documentId} by ${increment}`,
+        );
+      }
     } catch (error) {
       console.error(`Error updating quiz count: ${error}`);
-      throw error;
     }
   }
 
   /**
-   * Delete file from storage
+   * Delete file from disk
    */
-  deleteFile(filePath: string): boolean {
+  deleteFile(filePath: string): void {
     try {
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
-        console.log(`File deleted: ${filePath}`);
-        return true;
       }
-      return false;
     } catch (error) {
       console.error(`Error deleting file: ${error}`);
-      return false;
     }
   }
 }

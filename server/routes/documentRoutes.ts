@@ -1,15 +1,23 @@
-import express, { Request, Response } from 'express';
-import { requireUser } from './middlewares/auth';
-import documentService from '../services/documentService';
-import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
-import { ROLES } from 'shared';
+import express, { Request, Response } from "express";
+import { requireUser } from "./middlewares/auth";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import { AppDataSource } from "../config/data-source";
+import { Document } from "../models/Document.entity";
 
 const router = express.Router();
 
+interface AuthRequest extends Request {
+  user?: {
+    id: string;
+    email: string;
+    role: string;
+  };
+}
+
 // Configure multer for file uploads
-const uploadDir = path.join(process.cwd(), 'uploads');
+const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -27,116 +35,141 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'application/pdf') {
+    if (file.mimetype === "application/pdf") {
       cb(null, true);
     } else {
-      cb(new Error('Only PDF files are allowed'));
+      cb(new Error("Only PDF files are allowed"));
     }
   },
-  limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB limit
+  limits: { fileSize: 50 * 1024 * 1024 },
+});
+
+// Upload a new document
+router.post(
+  "/upload",
+  requireUser(["admin"]),
+  upload.single("file"),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file provided" });
+      }
+
+      if (!req.user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const documentRepo = AppDataSource.getRepository(Document);
+
+      const document = new Document();
+      document.title = req.file.originalname;
+      document.filePath = req.file.path;
+      document.userId = req.user.id;
+      document.extractedText = null;
+      document.uploadedAt = new Date();
+
+      await documentRepo.save(document);
+
+      res.status(200).json({ document });
+    } catch (error) {
+      console.error("Error uploading document:", error);
+      if (req.file) {
+        fs.unlinkSync(req.file.path);
+      }
+      res.status(500).json({ error: "Failed to upload document" });
+    }
   },
-});
+);
 
-interface AuthRequest extends Request {
-  user?: any;
-}
+// Get all documents for current user
+router.get(
+  "/",
+  requireUser(["admin"]),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
 
-// Description: Upload a new document
-// Endpoint: POST /api/documents/upload
-// Request: FormData with file
-// Response: { document: Document }
-router.post('/upload', requireUser([ROLES.ADMIN]), upload.single('file'), async (req: AuthRequest, res: Response) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file provided' });
+      const documentRepo = AppDataSource.getRepository(Document);
+      const documents = await documentRepo.find({
+        where: { userId: req.user.id },
+        order: { uploadedAt: "DESC" },
+      });
+      res.status(200).json({ documents });
+    } catch (error) {
+      console.error("Error fetching documents:", error);
+      res.status(500).json({ error: "Failed to fetch documents" });
     }
+  },
+);
 
-    console.log(`Uploading document: ${req.file.originalname}`);
+// Get document by ID
+router.get(
+  "/:id",
+  requireUser(["admin"]),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
 
-    const document = await documentService.create({
-      fileName: req.file.originalname,
-      fileSize: req.file.size,
-      userId: req.user._id,
-      filePath: req.file.path,
-    });
+      const documentRepo = AppDataSource.getRepository(Document);
+      const document = await documentRepo.findOne({
+        where: { id: req.params.id },
+      });
 
-    res.status(200).json({ document });
-  } catch (error) {
-    console.error(`Error uploading document: ${error}`);
-    if (req.file) {
-      documentService.deleteFile(req.file.path);
+      if (!document) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+
+      if (document.userId !== req.user.id) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+
+      res.status(200).json({ document });
+    } catch (error) {
+      console.error("Error fetching document:", error);
+      res.status(500).json({ error: "Failed to fetch document" });
     }
-    res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to upload document' });
-  }
-});
+  },
+);
 
-// Description: Get all documents
-// Endpoint: GET /api/documents
-// Request: {}
-// Response: { documents: Document[] }
-router.get('/', requireUser([ROLES.ADMIN]), async (req: AuthRequest, res: Response) => {
-  try {
-    const documents = await documentService.getUserDocuments(req.user._id);
-    res.status(200).json({ documents });
-  } catch (error) {
-    console.error(`Error fetching documents: ${error}`);
-    res.status(500).json({ error: 'Failed to fetch documents' });
-  }
-});
+// Delete a document
+router.delete(
+  "/:id",
+  requireUser(["admin"]),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
 
-// Description: Get document by ID
-// Endpoint: GET /api/documents/:id
-// Request: {}
-// Response: { document: Document }
-router.get('/:id', requireUser([ROLES.ADMIN]), async (req: AuthRequest, res: Response) => {
-  try {
-    const document = await documentService.getById(req.params.id);
+      const documentRepo = AppDataSource.getRepository(Document);
+      const document = await documentRepo.findOne({
+        where: { id: req.params.id },
+      });
 
-    if (!document) {
-      return res.status(404).json({ error: 'Document not found' });
-    }
+      if (!document) {
+        return res.status(404).json({ error: "Document not found" });
+      }
 
-    // Check if user owns this document
-    if (document.userId !== req.user._id.toString()) {
-      return res.status(403).json({ error: 'Unauthorized' });
-    }
+      if (document.userId !== req.user.id) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
 
-    res.status(200).json({ document });
-  } catch (error) {
-    console.error(`Error fetching document: ${error}`);
-    res.status(500).json({ error: 'Failed to fetch document' });
-  }
-});
+      // Delete file from disk
+      if (fs.existsSync(document.filePath)) {
+        fs.unlinkSync(document.filePath);
+      }
 
-// Description: Delete a document
-// Endpoint: DELETE /api/documents/:id
-// Request: {}
-// Response: { success: boolean }
-router.delete('/:id', requireUser([ROLES.ADMIN]), async (req: AuthRequest, res: Response) => {
-  try {
-    const document = await documentService.getById(req.params.id);
-
-    if (!document) {
-      return res.status(404).json({ error: 'Document not found' });
-    }
-
-    // Check if user owns this document
-    if (document.userId !== req.user._id.toString()) {
-      return res.status(403).json({ error: 'Unauthorized' });
-    }
-
-    const success = await documentService.delete(req.params.id);
-
-    if (success) {
+      await documentRepo.delete(document.id);
       res.status(200).json({ success: true });
-    } else {
-      res.status(404).json({ error: 'Document not found' });
+    } catch (error) {
+      console.error("Error deleting document:", error);
+      res.status(500).json({ error: "Failed to delete document" });
     }
-  } catch (error) {
-    console.error(`Error deleting document: ${error}`);
-    res.status(500).json({ error: 'Failed to delete document' });
-  }
-});
+  },
+);
 
 export default router;

@@ -1,127 +1,171 @@
-import Anthropic from '@anthropic-ai/sdk';
-import { IQuizQuestion } from '../models/Quiz';
-
-// Create client lazily to ensure env vars are loaded
-let client: Anthropic | null = null;
-
-const getClient = (): Anthropic => {
-  if (!client) {
-    if (!process.env.ANTHROPIC_API_KEY) {
-      console.error('ERROR: ANTHROPIC_API_KEY is not set in environment variables');
-      throw new Error('ANTHROPIC_API_KEY environment variable is required');
-    }
-    client = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
-  }
-  return client;
-};
+import axios from "axios";
+import dotenv from "dotenv";
+dotenv.config();
 
 interface GenerateQuizParams {
   content: string;
   numberOfQuestions: number;
-  difficulty: 'easy' | 'medium' | 'hard' | 'mixed';
+  difficulty: "easy" | "medium" | "hard" | "mixed";
   category?: string;
 }
 
+interface GeneratedQuestion {
+  id: string;
+  questionText: string;
+  options: string[];
+  correctAnswer: number;
+  explanation: string;
+  difficulty: string;
+}
+
 interface GeneratedQuizResponse {
-  questions: IQuizQuestion[];
+  questions: GeneratedQuestion[];
 }
 
 /**
- * Generate quiz questions from document content using Claude API
+ * Generate quiz questions from document content using Yandex GPT API
  */
-export const generateQuizWithClaude = async (params: GenerateQuizParams): Promise<GeneratedQuizResponse> => {
+export const generateQuizWithAI = async (
+  params: GenerateQuizParams,
+): Promise<GeneratedQuizResponse> => {
   try {
     const { content, numberOfQuestions, difficulty, category } = params;
 
-    console.log(`Generating ${numberOfQuestions} ${difficulty} questions from document using Claude...`);
+    console.log(
+      `Generating ${numberOfQuestions} ${difficulty} questions from document using Yandex GPT...`,
+    );
+
+    const YANDEX_API_KEY = process.env.YANDEX_API_KEY;
+    const FOLDER_ID = process.env.YANDEX_FOLDER_ID;
+
+    if (!YANDEX_API_KEY || !FOLDER_ID) {
+      throw new Error(
+        "YandexGPT credentials are missing. Check YANDEX_API_KEY and YANDEX_FOLDER_ID in .env",
+      );
+    }
 
     const difficultyInstructions = {
-      easy: 'The questions should be straightforward and test basic understanding of the concepts.',
-      medium: 'The questions should require understanding and application of concepts.',
-      hard: 'The questions should be challenging and require deep analysis and critical thinking.',
-      mixed: 'Mix easy, medium, and hard questions throughout the quiz.',
+      easy: "Вопросы должны быть простыми и проверять базовое понимание концепций.",
+      medium: "Вопросы должны требовать понимания и применения концепций.",
+      hard: "Вопросы должны быть сложными и требовать глубокого анализа и критического мышления.",
+      mixed:
+        "Смешайте простые, средние и сложные вопросы на протяжении всего теста.",
     };
 
-    const categoryHint = category ? `\nThe quiz is about: ${category}` : '';
+    const categoryHint = category ? `\nТема теста: ${category}` : "";
 
-    const prompt = `You are an expert quiz creator. Based on the following document content, create exactly ${numberOfQuestions} multiple-choice quiz questions.
+    const prompt = `Ты — эксперт по созданию учебных тестов. На основе следующего содержания документа создай ровно ${numberOfQuestions} вопросов с множественным выбором.
 
-Document Content:
+Содержание документа:
 ${content.substring(0, 4000)}
 
-Difficulty Level: ${difficulty}
+Уровень сложности: ${difficulty}
 ${difficultyInstructions[difficulty]}${categoryHint}
 
-Generate the quiz in the following JSON format (respond ONLY with valid JSON, no markdown):
+Сгенерируй тест в следующем JSON формате (ОТВЕЧАЙ ТОЛЬКО валидным JSON, без markdown-разметки):
 {
   "questions": [
     {
-      "_id": "q1",
-      "questionText": "The question text?",
-      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "id": "q1",
+      "questionText": "Текст вопроса?",
+      "options": ["Вариант A", "Вариант B", "Вариант C", "Вариант D"],
       "correctAnswer": 0,
-      "explanation": "Why this answer is correct",
+      "explanation": "Почему этот ответ правильный",
       "difficulty": "easy"
     }
   ]
 }
 
-Rules:
-1. Each question must have exactly 4 options
-2. correctAnswer must be 0-3 (index of the correct option)
-3. Difficulty should match the requested level (easy/medium/hard)
-4. Generate exactly ${numberOfQuestions} questions
-5. Questions should test understanding of key concepts from the document
-6. Explanations should be clear and educational
-7. Only respond with the JSON object, no other text`;
+Правила:
+1. Каждый вопрос должен иметь ровно 4 варианта ответа
+2. correctAnswer должен быть 0-3 (индекс правильного варианта)
+3. Сложность должна соответствовать запрошенному уровню (easy/medium/hard)
+4. Сгенерируй ровно ${numberOfQuestions} вопросов
+5. Вопросы должны проверять понимание ключевых концепций из документа
+6. Объяснения должны быть понятными и образовательными
+7. Отвечай ТОЛЬКО JSON объектом, без другого текста`;
 
-    const anthropicClient = getClient();
-    // Using claude-opus as a fallback that's more widely available
-    const response = await anthropicClient.messages.create({
-      model: 'claude-haiku-4-5',
-      max_tokens: 4096,
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
+    console.log(`Sending request to YandexGPT API...`);
+
+    const response = await axios.post(
+      "https://llm.api.cloud.yandex.net/foundationModels/v1/completion",
+      {
+        modelUri: `gpt://${FOLDER_ID}/yandexgpt-lite/latest`,
+        completionOptions: {
+          stream: false,
+          temperature: 0.7,
+          maxTokens: 4000,
         },
-      ],
-    });
+        messages: [
+          {
+            role: "system",
+            text: "Ты — полезный ассистент для генерации учебных тестов. Отвечай только валидным JSON-массивом без пояснений и markdown-разметки.",
+          },
+          {
+            role: "user",
+            text: prompt,
+          },
+        ],
+      },
+      {
+        headers: {
+          Authorization: `Api-Key ${YANDEX_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 60000,
+      },
+    );
 
-    const responseText = response.content[0].type === 'text' ? response.content[0].text : '';
+    const aiResponse = response.data.result.alternatives[0].message.text;
+    console.log("YandexGPT raw response:", aiResponse.substring(0, 200));
+
+    // Clean response from markdown
+    let cleanResponse = aiResponse.trim();
+    if (cleanResponse.startsWith("```json")) {
+      cleanResponse = cleanResponse
+        .replace(/```json\n?/g, "")
+        .replace(/```\n?/g, "");
+    } else if (cleanResponse.startsWith("```")) {
+      cleanResponse = cleanResponse.replace(/```\n?/g, "");
+    }
 
     // Parse the JSON response
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    const jsonMatch = cleanResponse.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      throw new Error('Invalid response format from Claude API');
+      throw new Error("Invalid response format from YandexGPT API");
     }
 
     const parsedResponse: GeneratedQuizResponse = JSON.parse(jsonMatch[0]);
 
     // Validate and ensure we have the correct number of questions
     if (!Array.isArray(parsedResponse.questions)) {
-      throw new Error('Invalid quiz format received from Claude');
+      throw new Error("Invalid quiz format received from YandexGPT");
     }
 
     // Ensure each question has required fields
     const validatedQuestions = parsedResponse.questions.map((q, index) => ({
-      _id: q._id || `q${index + 1}`,
-      questionText: q.questionText || '',
+      id: q.id || `q${index + 1}`,
+      questionText: q.questionText || "",
       options: q.options || [],
       correctAnswer: q.correctAnswer !== undefined ? q.correctAnswer : 0,
-      explanation: q.explanation || '',
-      difficulty: (q.difficulty || difficulty) as 'easy' | 'medium' | 'hard',
+      explanation: q.explanation || "",
+      difficulty: (q.difficulty || difficulty) as "easy" | "medium" | "hard",
     }));
 
-    console.log(`Successfully generated ${validatedQuestions.length} quiz questions`);
+    console.log(
+      `Successfully generated ${validatedQuestions.length} quiz questions`,
+    );
 
     return {
       questions: validatedQuestions.slice(0, numberOfQuestions),
     };
   } catch (error) {
-    console.error(`Error generating quiz with Claude: ${error}`);
-    throw new Error(`Failed to generate quiz: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.error(`Error generating quiz with YandexGPT: ${error}`);
+    throw new Error(
+      `Failed to generate quiz: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
   }
 };
+
+// Сохраняем старое имя функции для обратной совместимости
+export const generateQuizWithClaude = generateQuizWithAI;
