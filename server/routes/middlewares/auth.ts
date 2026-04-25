@@ -16,7 +16,8 @@ export const requireAuth = async (
   next: NextFunction,
 ) => {
   try {
-    const authHeader = req.headers.authorization;
+    const authHeader = req.headers?.authorization;
+
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({ error: "No token provided" });
     }
@@ -57,15 +58,5 @@ export const requireRole = (roles: string[]) => {
   };
 };
 
-// Alias for backward compatibility
-export const requireUser = (roles: string[]) => {
-  return (req: AuthRequest, res: Response, next: NextFunction) => {
-    if (!req.user) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    if (roles.length > 0 && !roles.includes(req.user.role)) {
-      return res.status(403).json({ error: "Insufficient permissions" });
-    }
-    next();
-  };
-};
+// Алиас для обратной совместимости
+export const requireUser = requireAuth;

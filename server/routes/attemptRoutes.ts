@@ -1,40 +1,22 @@
 import express, { Request, Response } from "express";
+import { requireAuth } from "./middlewares/auth";
 import { AppDataSource } from "../config/data-source";
 import { QuizAttempt } from "../models/QuizAttempt.entity";
 import { Quiz } from "../models/Quiz.entity";
-import jwt from "jsonwebtoken";
 
 const router = express.Router();
 
-// Middleware для получения пользователя из токена
-const getUserFromToken = async (
-  req: Request,
-): Promise<{ id: string; role: string } | null> => {
-  try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return null;
-    }
-    const token = authHeader.substring(7);
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || "secret",
-    ) as any;
-    return { id: decoded.id, role: decoded.role };
-  } catch (error) {
-    return null;
-  }
-};
+interface AuthRequest extends Request {
+  user?: {
+    id: string;
+    email: string;
+    role: string;
+  };
+}
 
 // Get quiz attempt result by ID
-// GET /api/results/:id
-router.get("/:id", async (req: Request, res: Response) => {
+router.get("/:id", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const user = await getUserFromToken(req);
-    if (!user) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
     const attemptRepo = AppDataSource.getRepository(QuizAttempt);
     const attempt = await attemptRepo.findOne({
       where: { id: req.params.id },
@@ -46,7 +28,7 @@ router.get("/:id", async (req: Request, res: Response) => {
     }
 
     // Check if user is the student who took the quiz or an admin
-    if (user.role !== "admin" && attempt.studentId !== user.id) {
+    if (req.user!.role !== "admin" && attempt.studentId !== req.user!.id) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
@@ -75,15 +57,9 @@ router.get("/:id", async (req: Request, res: Response) => {
 });
 
 // Get all results for a student
-// GET /api/results
-router.get("/", async (req: Request, res: Response) => {
+router.get("/", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const user = await getUserFromToken(req);
-    if (!user) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
-    if (user.role !== "student") {
+    if (!req.user || req.user.role !== "student") {
       return res
         .status(403)
         .json({ error: "Only students can access their results" });
@@ -91,7 +67,7 @@ router.get("/", async (req: Request, res: Response) => {
 
     const attemptRepo = AppDataSource.getRepository(QuizAttempt);
     const attempts = await attemptRepo.find({
-      where: { studentId: user.id },
+      where: { studentId: req.user.id },
       relations: ["quiz"],
       order: { startedAt: "DESC" },
     });

@@ -1,202 +1,174 @@
-import express, { Request, Response } from 'express';
-import { requireUser } from './middlewares/auth';
-import quizService from '../services/quizService';
-import { ROLES } from 'shared';
+import express, { Request, Response } from "express";
+import { requireAuth } from "./middlewares/auth";
+import { AppDataSource } from "../config/data-source";
+import { Quiz } from "../models/Quiz.entity";
+import { QuizAttempt } from "../models/QuizAttempt.entity";
+import { Question } from "../models/Question.entity";
+import { AnswerOption } from "../models/AnswerOption.entity";
 
 const router = express.Router();
 
 interface AuthRequest extends Request {
-  user?: any;
+  user?: {
+    id: string;
+    email: string;
+    role: string;
+  };
 }
 
-// Description: Generate a new quiz from a document
-// Endpoint: POST /api/quizzes/generate
-// Request: { documentId: string, title: string, numberOfQuestions: number, difficulty: string, passingScore: number, ... }
-// Response: { quiz: Quiz }
-router.post('/generate', requireUser([ROLES.ADMIN]), async (req: AuthRequest, res: Response) => {
+// Get all quizzes (admin view)
+router.get("/", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const { documentId, title, numberOfQuestions, difficulty, timeLimit, passingScore, category } = req.body;
-
-    if (!documentId || !title || !numberOfQuestions || !difficulty || passingScore === undefined) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    if (!req.user || req.user.role !== "admin") {
+      return res.status(403).json({ error: "Unauthorized" });
     }
 
-    if (!['easy', 'medium', 'hard', 'mixed'].includes(difficulty)) {
-      return res.status(400).json({ error: 'Invalid difficulty level' });
+    const quizRepo = AppDataSource.getRepository(Quiz);
+    const quizzes = await quizRepo.find({
+      where: { createdBy: req.user.id },
+      relations: ["document"],
+      order: { createdAt: "DESC" },
+    });
+    res.status(200).json({ quizzes });
+  } catch (error) {
+    console.error("Error fetching quizzes:", error);
+    res.status(500).json({ error: "Failed to fetch quizzes" });
+  }
+});
+
+// Get published quizzes for students
+router.get("/student", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== "student") {
+      return res
+        .status(403)
+        .json({ error: "Only students can access this endpoint" });
     }
 
-    console.log(`Admin ${req.user._id} is generating quiz: ${title}`);
+    const quizRepo = AppDataSource.getRepository(Quiz);
+    const quizzes = await quizRepo.find({
+      where: { isPublished: true },
+      relations: ["document"],
+      order: { createdAt: "DESC" },
+    });
+    res.status(200).json({ quizzes });
+  } catch (error) {
+    console.error("Error fetching published quizzes:", error);
+    res.status(500).json({ error: "Failed to fetch quizzes" });
+  }
+});
 
-    const quiz = await quizService.generateQuiz({
-      documentId,
-      title,
-      numberOfQuestions,
-      difficulty,
-      timeLimit,
-      passingScore,
-      category,
-      userId: req.user._id,
+// Get quiz by ID
+router.get("/:id", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const quizRepo = AppDataSource.getRepository(Quiz);
+    const quiz = await quizRepo.findOne({
+      where: { id: req.params.id },
+      relations: ["questions", "questions.options", "document"],
     });
 
-    res.status(200).json({ quiz });
-  } catch (error) {
-    console.error(`Error generating quiz: ${error}`);
-    res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to generate quiz' });
-  }
-});
-
-// Description: Get all quizzes (admin view - only their own)
-// Endpoint: GET /api/quizzes
-// Request: {}
-// Response: { quizzes: Quiz[] }
-router.get('/', requireUser([ROLES.ADMIN]), async (req: AuthRequest, res: Response) => {
-  try {
-    const quizzes = await quizService.getAllQuizzes(req.user._id);
-    res.status(200).json({ quizzes });
-  } catch (error) {
-    console.error(`Error fetching quizzes: ${error}`);
-    res.status(500).json({ error: 'Failed to fetch quizzes' });
-  }
-});
-
-// Description: Get published quizzes for students
-// Endpoint: GET /api/quizzes/student
-// Request: {}
-// Response: { quizzes: Quiz[] }
-router.get('/student', requireUser([ROLES.STUDENT]), async (req: AuthRequest, res: Response) => {
-  try {
-    const quizzes = await quizService.getPublishedQuizzes();
-    res.status(200).json({ quizzes });
-  } catch (error) {
-    console.error(`Error fetching published quizzes: ${error}`);
-    res.status(500).json({ error: 'Failed to fetch quizzes' });
-  }
-});
-
-// Description: Get quiz by ID
-// Endpoint: GET /api/quizzes/:id
-// Request: {}
-// Response: { quiz: Quiz }
-router.get('/:id', requireUser([ROLES.ADMIN, ROLES.STUDENT]), async (req: AuthRequest, res: Response) => {
-  try {
-    const quiz = await quizService.getById(req.params.id);
-
     if (!quiz) {
-      return res.status(404).json({ error: 'Quiz not found' });
+      return res.status(404).json({ error: "Quiz not found" });
     }
 
     // If student, only allow access to published quizzes
-    if (req.user.role === ROLES.STUDENT && quiz.status !== 'published') {
-      return res.status(403).json({ error: 'Unauthorized' });
+    if (req.user!.role === "student" && !quiz.isPublished) {
+      return res.status(403).json({ error: "Quiz not available" });
     }
 
     // If admin, only allow access to their own quizzes
-    if (req.user.role === ROLES.ADMIN && quiz.createdBy !== req.user._id.toString()) {
-      return res.status(403).json({ error: 'Unauthorized' });
+    if (req.user!.role === "admin" && quiz.createdBy !== req.user!.id) {
+      return res.status(403).json({ error: "Unauthorized" });
     }
 
     res.status(200).json({ quiz });
   } catch (error) {
-    console.error(`Error fetching quiz: ${error}`);
-    res.status(500).json({ error: 'Failed to fetch quiz' });
+    console.error("Error fetching quiz:", error);
+    res.status(500).json({ error: "Failed to fetch quiz" });
   }
 });
 
-// Description: Update quiz
-// Endpoint: PUT /api/quizzes/:id
-// Request: { quiz: Partial<Quiz> }
-// Response: { quiz: Quiz }
-router.put('/:id', requireUser([ROLES.ADMIN]), async (req: AuthRequest, res: Response) => {
-  try {
-    const quiz = await quizService.getById(req.params.id);
+// Submit quiz attempt
+router.post(
+  "/:id/submit",
+  requireAuth,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      if (!req.user || req.user.role !== "student") {
+        return res
+          .status(403)
+          .json({ error: "Only students can submit quiz attempts" });
+      }
 
-    if (!quiz) {
-      return res.status(404).json({ error: 'Quiz not found' });
+      const { answers, timeSpent } = req.body;
+      const quizId = req.params.id;
+
+      if (!answers || timeSpent === undefined) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const quizRepo = AppDataSource.getRepository(Quiz);
+      const quiz = await quizRepo.findOne({
+        where: { id: quizId },
+        relations: ["questions", "questions.options"],
+      });
+
+      if (!quiz) {
+        return res.status(404).json({ error: "Quiz not found" });
+      }
+
+      if (!quiz.isPublished) {
+        return res.status(403).json({ error: "Quiz is not available" });
+      }
+
+      // Calculate score
+      let totalPoints = 0;
+      let earnedPoints = 0;
+
+      for (const question of quiz.questions) {
+        totalPoints += question.points;
+        const userAnswer = answers[question.id];
+
+        if (userAnswer !== undefined) {
+          const correctOption = question.options.find((opt) => opt.isCorrect);
+          if (correctOption && userAnswer === correctOption.id) {
+            earnedPoints += question.points;
+          }
+        }
+      }
+
+      const score = Math.round((earnedPoints / totalPoints) * 100);
+      const passed = score >= (quiz.passingScore || 60);
+
+      // Save attempt
+      const attemptRepo = AppDataSource.getRepository(QuizAttempt);
+      const attempt = new QuizAttempt();
+      attempt.quizId = quizId;
+      attempt.studentId = req.user.id;
+      attempt.score = score;
+      attempt.passed = passed;
+      attempt.completedAt = new Date();
+      attempt.startedAt = new Date();
+      attempt.answers = answers;
+
+      await attemptRepo.save(attempt);
+
+      res.status(200).json({
+        result: {
+          id: attempt.id,
+          score: attempt.score,
+          passed: attempt.passed,
+          completedAt: attempt.completedAt,
+          totalPoints,
+          earnedPoints,
+          questions: quiz.questions,
+        },
+      });
+    } catch (error) {
+      console.error("Error submitting quiz attempt:", error);
+      res.status(500).json({ error: "Failed to submit quiz attempt" });
     }
-
-    // Check if user owns this quiz
-    if (quiz.createdBy !== req.user._id.toString()) {
-      return res.status(403).json({ error: 'Unauthorized' });
-    }
-
-    console.log(`Updating quiz: ${req.params.id}`);
-
-    const updatedQuiz = await quizService.update(req.params.id, req.body);
-
-    res.status(200).json({ quiz: updatedQuiz });
-  } catch (error) {
-    console.error(`Error updating quiz: ${error}`);
-    res.status(500).json({ error: 'Failed to update quiz' });
-  }
-});
-
-// Description: Delete quiz
-// Endpoint: DELETE /api/quizzes/:id
-// Request: {}
-// Response: { success: boolean }
-router.delete('/:id', requireUser([ROLES.ADMIN]), async (req: AuthRequest, res: Response) => {
-  try {
-    const quiz = await quizService.getById(req.params.id);
-
-    if (!quiz) {
-      return res.status(404).json({ error: 'Quiz not found' });
-    }
-
-    // Check if user owns this quiz
-    if (quiz.createdBy !== req.user._id.toString()) {
-      return res.status(403).json({ error: 'Unauthorized' });
-    }
-
-    console.log(`Deleting quiz: ${req.params.id}`);
-
-    await quizService.delete(req.params.id);
-
-    res.status(200).json({ success: true });
-  } catch (error) {
-    console.error(`Error deleting quiz: ${error}`);
-    res.status(500).json({ error: 'Failed to delete quiz' });
-  }
-});
-
-// Description: Submit quiz attempt
-// Endpoint: POST /api/quizzes/:id/submit
-// Request: { answers: { [questionId: string]: number }, timeSpent: number }
-// Response: { result: QuizResult }
-router.post('/:id/submit', requireUser([ROLES.STUDENT]), async (req: AuthRequest, res: Response) => {
-  try {
-    const { answers, timeSpent } = req.body;
-
-    if (!answers || timeSpent === undefined) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    const quiz = await quizService.getById(req.params.id);
-
-    if (!quiz) {
-      return res.status(404).json({ error: 'Quiz not found' });
-    }
-
-    if (quiz.status !== 'published') {
-      return res.status(403).json({ error: 'Quiz is not available' });
-    }
-
-    console.log(`Student ${req.user._id} submitted attempt for quiz: ${req.params.id}`);
-
-    const result = await quizService.submitAttempt({
-      quizId: req.params.id,
-      studentId: req.user._id,
-      answers,
-      timeSpent,
-    });
-
-    // Fetch the quiz to include with result
-    const questions = quiz.questions;
-
-    res.status(200).json({ result: { ...result.toObject(), questions } });
-  } catch (error) {
-    console.error(`Error submitting quiz attempt: ${error}`);
-    res.status(500).json({ error: 'Failed to submit quiz attempt' });
-  }
-});
+  },
+);
 
 export default router;
