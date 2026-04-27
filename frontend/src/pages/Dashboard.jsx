@@ -35,20 +35,20 @@ function Dashboard() {
         <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-purple-400">SmartTest</h1>
           <div className="flex gap-4">
+            <button
+              onClick={() => navigate("/profile")}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition"
+            >
+              👤 Профиль
+            </button>
             {user.role === "admin" && (
               <button
                 onClick={() => navigate("/admin")}
                 className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition"
               >
-                Админ-панель
+                ⚙️ Админ-панель
               </button>
             )}
-            <button
-              onClick={() => navigate("/profile")}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition"
-            >
-              Профиль
-            </button>
             <button
               onClick={handleLogout}
               className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition"

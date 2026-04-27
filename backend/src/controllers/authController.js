@@ -4,13 +4,17 @@ import pool from "../models/db.js";
 
 export const register = async (req, res) => {
   try {
-    const { email, password, role = "student" } = req.body;
+    const {
+      email,
+      password,
+      role = "student",
+      first_name,
+      last_name,
+    } = req.body;
 
-    // Валидация роли (только admin или student)
     const validRoles = ["admin", "student"];
     const userRole = validRoles.includes(role) ? role : "student";
 
-    // Проверка существующего пользователя
     const existingUser = await pool.query(
       "SELECT * FROM users WHERE email = $1",
       [email],
@@ -21,16 +25,13 @@ export const register = async (req, res) => {
         .json({ error: "Пользователь с таким email уже существует" });
     }
 
-    // Хеширование пароля
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Создание пользователя
     const result = await pool.query(
-      "INSERT INTO users (email, password_hash, role) VALUES ($1, $2, $3) RETURNING id, email, role",
-      [email, hashedPassword, userRole],
+      "INSERT INTO users (email, password_hash, role, first_name, last_name) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, role, first_name, last_name",
+      [email, hashedPassword, userRole, first_name || null, last_name || null],
     );
 
-    // Создание JWT токена
     const token = jwt.sign(
       {
         id: result.rows[0].id,
@@ -41,15 +42,7 @@ export const register = async (req, res) => {
       { expiresIn: "7d" },
     );
 
-    // Логирование
-    console.log(
-      `[${new Date().toISOString()}] Новый пользователь: ${email}, роль: ${userRole}`,
-    );
-
-    res.json({
-      token,
-      user: result.rows[0],
-    });
+    res.json({ token, user: result.rows[0] });
   } catch (error) {
     console.error("Registration error:", error);
     res.status(500).json({ error: "Ошибка регистрации" });
@@ -99,5 +92,119 @@ export const getMe = async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: "Ошибка получения данных пользователя" });
+  }
+};
+
+// Получение профиля пользователя (расширенный)
+export const getProfile = async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT id, email, first_name, last_name, role, created_at FROM users WHERE id = $1",
+      [req.user.id],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Пользователь не найден" });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Get profile error:", error);
+    res.status(500).json({ error: "Ошибка получения профиля" });
+  }
+};
+
+// Обновление профиля пользователя
+export const updateProfile = async (req, res) => {
+  try {
+    const { first_name, last_name } = req.body;
+    const userId = req.user.id;
+
+    // Валидация
+    if (first_name && (first_name.length < 2 || first_name.length > 100)) {
+      return res
+        .status(400)
+        .json({ error: "Имя должно быть от 2 до 100 символов" });
+    }
+
+    if (last_name && (last_name.length < 2 || last_name.length > 100)) {
+      return res
+        .status(400)
+        .json({ error: "Фамилия должна быть от 2 до 100 символов" });
+    }
+
+    // Обновление данных
+    const result = await pool.query(
+      `UPDATE users 
+             SET first_name = COALESCE($1, first_name),
+                 last_name = COALESCE($2, last_name),
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $3
+             RETURNING id, email, first_name, last_name, role, created_at`,
+      [first_name, last_name, userId],
+    );
+
+    // Логирование
+    console.log(
+      `[${new Date().toISOString()}] Пользователь ${req.user.email} обновил профиль`,
+    );
+
+    res.json({
+      message: "Профиль успешно обновлен",
+      user: result.rows[0],
+    });
+  } catch (error) {
+    console.error("Update profile error:", error);
+    res.status(500).json({ error: "Ошибка обновления профиля" });
+  }
+};
+
+// Изменение пароля
+export const changePassword = async (req, res) => {
+  try {
+    const { current_password, new_password } = req.body;
+    const userId = req.user.id;
+
+    // Валидация
+    if (!current_password || !new_password) {
+      return res.status(400).json({ error: "Заполните все поля" });
+    }
+
+    if (new_password.length < 6) {
+      return res
+        .status(400)
+        .json({ error: "Новый пароль должен быть не менее 6 символов" });
+    }
+
+    // Получение текущего пользователя
+    const userResult = await pool.query(
+      "SELECT password_hash FROM users WHERE id = $1",
+      [userId],
+    );
+    const user = userResult.rows[0];
+
+    // Проверка текущего пароля
+    const isValid = await bcrypt.compare(current_password, user.password_hash);
+    if (!isValid) {
+      return res.status(401).json({ error: "Неверный текущий пароль" });
+    }
+
+    // Хеширование нового пароля
+    const hashedPassword = await bcrypt.hash(new_password, 10);
+
+    // Обновление пароля
+    await pool.query(
+      "UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
+      [hashedPassword, userId],
+    );
+
+    console.log(
+      `[${new Date().toISOString()}] Пользователь ${req.user.email} изменил пароль`,
+    );
+
+    res.json({ message: "Пароль успешно изменен" });
+  } catch (error) {
+    console.error("Change password error:", error);
+    res.status(500).json({ error: "Ошибка изменения пароля" });
   }
 };

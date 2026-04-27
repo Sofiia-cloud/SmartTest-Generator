@@ -68,3 +68,9 @@ CREATE TABLE quiz_attempts (
 INSERT INTO users (email, password_hash, role) VALUES 
 ('admin@test.com', '$2b$10$YjZqGq5xLq5xLq5xLq5xLu5xLq5xLq5xLq5xLq5xLq5xLq5xLq5', 'admin')
 ON CONFLICT (email) DO NOTHING;
+
+-- Добавление полей в существующую таблицу
+ALTER TABLE users 
+ADD COLUMN IF NOT EXISTS first_name VARCHAR(100),
+ADD COLUMN IF NOT EXISTS last_name VARCHAR(100),
+ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;

@@ -91,10 +91,16 @@ function AdminPanel() {
           <h1 className="text-2xl font-bold text-purple-400">Админ-панель</h1>
           <div className="flex gap-4">
             <button
-              onClick={() => navigate("/")}
-              className="px-4 py-2 bg-gray-700 rounded-lg"
+              onClick={() => navigate("/profile")}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition"
             >
-              На главную
+              👤 Мой профиль
+            </button>
+            <button
+              onClick={() => navigate("/")}
+              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition"
+            >
+              🏠 На главную
             </button>
             <button
               onClick={() => {
@@ -102,7 +108,7 @@ function AdminPanel() {
                 localStorage.removeItem("user");
                 navigate("/login");
               }}
-              className="px-4 py-2 bg-red-600 rounded-lg"
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition"
             >
               Выйти
             </button>

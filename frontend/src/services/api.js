@@ -19,6 +19,9 @@ export const auth = {
   register: (data) => api.post("/auth/register", data),
   login: (data) => api.post("/auth/login", data),
   me: () => api.get("/auth/me"),
+  getProfile: () => api.get("/auth/profile"),
+  updateProfile: (data) => api.put("/auth/profile", data),
+  changePassword: (data) => api.put("/auth/change-password", data),
 };
 
 export const documents = {

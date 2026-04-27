@@ -7,6 +7,8 @@ function Register() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState("student"); // 'student' или 'admin'
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -34,7 +36,13 @@ function Register() {
     setError("");
 
     try {
-      const response = await auth.register({ email, password, role });
+      const response = await auth.register({
+        email,
+        password,
+        role,
+        first_name: firstName,
+        last_name: lastName,
+      });
       localStorage.setItem("token", response.data.token);
       localStorage.setItem("user", JSON.stringify(response.data.user));
 
@@ -67,6 +75,28 @@ function Register() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Имя</label>
+              <input
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-purple-500"
+                placeholder="Введите имя"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Фамилия</label>
+              <input
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-purple-500"
+                placeholder="Введите фамилию"
+              />
+            </div>
+
             <label className="block text-sm font-medium mb-2">Email</label>
             <input
               type="email"
