@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import { auth, quizzes } from "../services/api";
 
 function Profile() {
@@ -8,6 +9,7 @@ function Profile() {
     last_name: "",
     email: "",
     role: "",
+    created_at: "",
   });
   const [attempts, setAttempts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,7 +26,7 @@ function Profile() {
   });
   const [message, setMessage] = useState({ text: "", type: "" });
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const { logout, updateUser, user: authUser } = useAuth();
 
   useEffect(() => {
     loadProfile();
@@ -60,6 +62,8 @@ function Profile() {
     try {
       const response = await auth.updateProfile(formData);
       setProfile(response.data.user);
+      // Обновляем пользователя в контексте
+      updateUser(response.data.user);
       setEditing(false);
       setMessage({ text: "Профиль успешно обновлен!", type: "success" });
       setTimeout(() => setMessage({ text: "", type: "" }), 3000);
@@ -109,8 +113,7 @@ function Profile() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    logout(); // Используем контекст для выхода
     navigate("/login");
   };
 
@@ -118,28 +121,28 @@ function Profile() {
     <div className="min-h-screen bg-gray-900">
       {/* Навигация */}
       <nav className="bg-gray-800 shadow-lg border-b border-gray-700 p-4">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
+        <div className="max-w-7xl mx-auto flex justify-between items-center flex-wrap gap-2">
           <h1 className="text-2xl font-bold text-purple-400">Личный кабинет</h1>
-          <div className="flex gap-4">
-            {user.role === "admin" && (
+          <div className="flex gap-3 flex-wrap">
+            {authUser?.role === "admin" && (
               <button
                 onClick={() => navigate("/admin")}
                 className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition"
               >
-                Админ-панель
+                ⚙️ Админ-панель
               </button>
             )}
             <button
               onClick={() => navigate("/")}
               className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition"
             >
-              На главную
+              🏠 На главную
             </button>
             <button
               onClick={handleLogout}
               className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition"
             >
-              Выйти
+              🚪 Выйти
             </button>
           </div>
         </div>
@@ -167,12 +170,12 @@ function Profile() {
                 <div className="w-24 h-24 bg-purple-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-4">
                   {profile.first_name
                     ? profile.first_name[0].toUpperCase()
-                    : user.email[0].toUpperCase()}
+                    : authUser?.email?.[0]?.toUpperCase() || "?"}
                 </div>
                 <h2 className="text-xl font-bold">
                   {profile.first_name || profile.last_name
                     ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim()
-                    : user.email}
+                    : authUser?.email || "Пользователь"}
                 </h2>
                 <p className="text-gray-400 mt-1">
                   {profile.role === "admin" ? "👨‍💼 Администратор" : "🎓 Студент"}
@@ -204,7 +207,9 @@ function Profile() {
                   <div className="flex justify-between">
                     <span className="text-gray-400">Дата регистрации:</span>
                     <span className="font-semibold">
-                      {new Date(profile.created_at).toLocaleDateString()}
+                      {profile.created_at
+                        ? new Date(profile.created_at).toLocaleDateString()
+                        : "—"}
                     </span>
                   </div>
                 </div>
@@ -399,10 +404,13 @@ function Profile() {
             <div className="bg-gray-800 rounded-xl p-6">
               <h2 className="text-xl font-bold mb-4">📊 История прохождений</h2>
               {loading ? (
-                <div className="text-center py-8">Загрузка...</div>
+                <div className="text-center py-8">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+                  <p className="mt-2 text-gray-400">Загрузка...</p>
+                </div>
               ) : attempts.length === 0 ? (
                 <div className="text-center py-8 text-gray-400">
-                  Вы ещё не прошли ни одного теста
+                  📭 Вы ещё не прошли ни одного теста
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -419,7 +427,7 @@ function Profile() {
                       {attempts.map((attempt) => (
                         <tr
                           key={attempt.id}
-                          className="border-b border-gray-700"
+                          className="border-b border-gray-700 hover:bg-gray-700/50 transition"
                         >
                           <td className="py-2 text-sm">
                             {new Date(attempt.started_at).toLocaleDateString()}

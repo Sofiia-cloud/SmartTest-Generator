@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import { auth } from "../services/api";
 
 function Login() {
@@ -8,6 +9,7 @@ function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -16,9 +18,17 @@ function Login() {
 
     try {
       const response = await auth.login({ email, password });
-      localStorage.setItem("token", response.data.token);
-      localStorage.setItem("user", JSON.stringify(response.data.user));
-      navigate("/");
+      const { token, user } = response.data;
+
+      // Используем контекст для входа
+      login(token, user);
+
+      // Перенаправление в зависимости от роли
+      if (user.role === "admin") {
+        navigate("/admin");
+      } else {
+        navigate("/");
+      }
     } catch (err) {
       setError(err.response?.data?.error || "Ошибка входа");
     } finally {
@@ -49,6 +59,7 @@ function Login() {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-purple-500"
               required
+              autoFocus
             />
           </div>
 

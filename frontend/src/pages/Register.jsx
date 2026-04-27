@@ -1,22 +1,23 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import { auth } from "../services/api";
 
 function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState("student"); // 'student' или 'admin'
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [role, setRole] = useState("student");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Валидация
     if (!email || !password) {
       setError("Заполните все поля");
       return;
@@ -43,11 +44,11 @@ function Register() {
         first_name: firstName,
         last_name: lastName,
       });
-      localStorage.setItem("token", response.data.token);
-      localStorage.setItem("user", JSON.stringify(response.data.user));
 
-      // Перенаправление в зависимости от роли
-      if (response.data.user.role === "admin") {
+      const { token, user } = response.data;
+      login(token, user);
+
+      if (user.role === "admin") {
         navigate("/admin");
       } else {
         navigate("/");
@@ -61,8 +62,8 @@ function Register() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-gray-800">
-      <div className="bg-gray-800 p-8 rounded-2xl shadow-2xl w-96">
-        <div className="text-center mb-8">
+      <div className="bg-gray-800 p-8 rounded-2xl shadow-2xl w-96 max-h-[90vh] overflow-y-auto">
+        <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-purple-400">SmartTest</h1>
           <p className="text-gray-400 mt-2">Создание аккаунта</p>
         </div>
@@ -73,62 +74,62 @@ function Register() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <div>
-              <label className="block text-sm font-medium mb-2">Имя</label>
-              <input
-                type="text"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-purple-500"
-                placeholder="Введите имя"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">Фамилия</label>
-              <input
-                type="text"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-purple-500"
-                placeholder="Введите фамилию"
-              />
-            </div>
-
-            <label className="block text-sm font-medium mb-2">Email</label>
+            <label className="block text-sm font-medium mb-1">Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-purple-500 transition"
-              placeholder="example@mail.com"
+              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-purple-500"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Пароль</label>
+            <label className="block text-sm font-medium mb-1">
+              Имя (необязательно)
+            </label>
+            <input
+              type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-purple-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Фамилия (необязательно)
+            </label>
+            <input
+              type="text"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-purple-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Пароль</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-purple-500 transition"
-              placeholder="минимум 6 символов"
+              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-purple-500"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">
+            <label className="block text-sm font-medium mb-1">
               Подтверждение пароля
             </label>
             <input
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-purple-500 transition"
+              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-purple-500"
               required
             />
           </div>
@@ -139,48 +140,38 @@ function Register() {
               <button
                 type="button"
                 onClick={() => setRole("student")}
-                className={`py-3 px-4 rounded-lg font-medium transition ${
+                className={`py-2 px-4 rounded-lg font-medium transition ${
                   role === "student"
                     ? "bg-purple-600 text-white ring-2 ring-purple-400"
                     : "bg-gray-700 text-gray-300 hover:bg-gray-600"
                 }`}
               >
-                <div className="flex flex-col items-center">
-                  <span>Ученик</span>
-                </div>
+                📚 Ученик
               </button>
-
               <button
                 type="button"
                 onClick={() => setRole("admin")}
-                className={`py-3 px-4 rounded-lg font-medium transition ${
+                className={`py-2 px-4 rounded-lg font-medium transition ${
                   role === "admin"
                     ? "bg-purple-600 text-white ring-2 ring-purple-400"
                     : "bg-gray-700 text-gray-300 hover:bg-gray-600"
                 }`}
               >
-                <div className="flex flex-col items-center">
-                  <span>Админ</span>
-                </div>
+                👨‍💼 Админ
               </button>
             </div>
-            <p className="text-xs text-gray-400 mt-2">
-              {role === "admin"
-                ? "Администратор может создавать тесты и управлять документами"
-                : "Ученик может проходить тесты и отслеживать прогресс"}
-            </p>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 bg-purple-600 hover:bg-purple-700 rounded-lg font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+            className="w-full py-2 bg-purple-600 hover:bg-purple-700 rounded-lg font-semibold transition disabled:opacity-50"
           >
             {loading ? "Регистрация..." : "Зарегистрироваться"}
           </button>
         </form>
 
-        <p className="text-center mt-6 text-gray-400">
+        <p className="text-center mt-4 text-gray-400">
           Уже есть аккаунт?{" "}
           <Link to="/login" className="text-purple-400 hover:underline">
             Войти

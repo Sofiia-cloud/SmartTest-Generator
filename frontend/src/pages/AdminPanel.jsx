@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { documents, quizzes } from "../services/api";
+import { useAuth } from "../context/AuthContext";
 
 function AdminPanel() {
   const [docList, setDocList] = useState([]);
@@ -13,6 +14,7 @@ function AdminPanel() {
   const [quizTitle, setQuizTitle] = useState("");
   const [questionCount, setQuestionCount] = useState(5);
   const [difficulty, setDifficulty] = useState("medium");
+  const { logout, user } = useAuth();
   const [passingScore, setPassingScore] = useState(60);
   const navigate = useNavigate();
 
@@ -84,6 +86,11 @@ function AdminPanel() {
     }
   };
 
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
   return (
     <div className="min-h-screen bg-gray-900">
       <nav className="bg-gray-800 shadow-lg border-b border-gray-700 p-4">
@@ -104,9 +111,7 @@ function AdminPanel() {
             </button>
             <button
               onClick={() => {
-                localStorage.removeItem("token");
-                localStorage.removeItem("user");
-                navigate("/login");
+                handleLogout;
               }}
               className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition"
             >
@@ -182,9 +187,10 @@ function AdminPanel() {
                   onChange={(e) => setQuizTitle(e.target.value)}
                   className="w-full mb-2 p-2 bg-gray-600 rounded"
                 />
+                <span>Количество вопросов (5-20)</span>
                 <input
                   type="number"
-                  placeholder="Количество вопросов (5-20)"
+                  placeholder="Количество вопросов (5-20):"
                   value={questionCount}
                   onChange={(e) =>
                     setQuestionCount(
@@ -193,6 +199,7 @@ function AdminPanel() {
                   }
                   className="w-full mb-2 p-2 bg-gray-600 rounded"
                 />
+                <span>Уровень сложности:</span>
                 <select
                   value={difficulty}
                   onChange={(e) => setDifficulty(e.target.value)}
@@ -202,6 +209,7 @@ function AdminPanel() {
                   <option value="medium">Средний</option>
                   <option value="hard">Сложный</option>
                 </select>
+                <span>Проходной балл (0-100)</span>
                 <input
                   type="number"
                   placeholder="Проходной балл (0-100)"
