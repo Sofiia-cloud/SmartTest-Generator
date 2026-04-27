@@ -1,0 +1,319 @@
+/* CSS Variables - Pure Coffee Theme */
+:root {
+  /* Light Theme - Cappuccino / Latte */
+  --bg-primary: #faf7f2;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f5efe6;
+  --bg-card: #ffffff;
+  --bg-hover: #f0e9df;
+
+  --text-primary: #3d2b1f;
+  --text-secondary: #6b4c3a;
+  --text-tertiary: #a88b74;
+  --text-muted: #c4afa0;
+
+  --border-light: #e8ddd0;
+  --border-medium: #d4c5b5;
+  --border-dark: #c4afa0;
+
+  --accent-light: #d4b896;
+  --accent-medium: #c4a87a;
+  --accent-dark: #b8956a;
+  --accent-deep: #a8825c;
+
+  --success: #5c4a3a;
+  --error: #8b5a4a;
+  --warning: #c4a87a;
+
+  --shadow-sm: 0 1px 3px rgba(61, 43, 31, 0.05);
+  --shadow-md: 0 4px 12px rgba(61, 43, 31, 0.08);
+  --shadow-lg: 0 10px 25px -5px rgba(61, 43, 31, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(61, 43, 31, 0.15);
+}
+
+.dark {
+  /* Dark Theme - Espresso / Dark Roast */
+  --bg-primary: #1a1410;
+  --bg-secondary: #241d17;
+  --bg-tertiary: #2d241d;
+  --bg-card: #241d17;
+  --bg-hover: #362b22;
+
+  --text-primary: #f5ede0;
+  --text-secondary: #d4c5b5;
+  --text-tertiary: #a88b74;
+  --text-muted: #6b4c3a;
+
+  --border-light: #362b22;
+  --border-medium: #4a3b2e;
+  --border-dark: #5c4a3a;
+
+  --accent-light: #8b7355;
+  --accent-medium: #6b4c3a;
+  --accent-dark: #5c4a3a;
+  --accent-deep: #4a3b2e;
+
+  --success: #5c4a3a;
+  --error: #8b5a4a;
+  --warning: #c4a87a;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
+}
+
+/* Global styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family:
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "Roboto",
+    sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
+}
+
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar - coffee themed */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--accent-medium);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-dark);
+}
+
+/* Selection color */
+::selection {
+  background: var(--accent-medium);
+  color: var(--text-primary);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
+
+.slide-in {
+  animation: slideIn 0.4s ease-out;
+}
+
+/* Glass morphism - coffee style */
+.glass-light {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(210, 180, 140, 0.3);
+}
+
+.glass-dark {
+  background: rgba(26, 20, 16, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(210, 180, 140, 0.1);
+}
+
+/* Coffee beans decoration */
+.coffee-bean {
+  position: relative;
+  display: inline-block;
+}
+
+.coffee-bean::before,
+.coffee-bean::after {
+  content: "🫘";
+  position: absolute;
+  font-size: 8px;
+  opacity: 0.3;
+}
+
+/* Buttons */
+.btn-primary {
+  background: linear-gradient(
+    135deg,
+    var(--accent-medium) 0%,
+    var(--accent-dark) 100%
+  );
+  color: var(--text-primary);
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.75rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px -5px rgba(61, 43, 31, 0.3);
+  filter: brightness(1.05);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.75rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  border: 1px solid var(--border-light);
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  background: var(--bg-hover);
+  transform: translateY(-1px);
+}
+
+/* Inputs - coffee style */
+input,
+textarea,
+select {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-light);
+  color: var(--text-primary);
+  padding: 0.625rem 1rem;
+  border-radius: 0.75rem;
+  transition: all 0.3s ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent-medium);
+  box-shadow: 0 0 0 3px rgba(107, 76, 58, 0.1);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+}
+
+/* Cards */
+.card {
+  background: var(--bg-card);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+  border: 1px solid var(--border-light);
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.badge-success {
+  background: var(--success);
+  color: var(--text-primary);
+}
+
+.badge-error {
+  background: var(--error);
+  color: var(--text-primary);
+}
+
+.badge-warning {
+  background: var(--warning);
+  color: var(--text-primary);
+}
+
+/* Divider */
+.divider {
+  height: 1px;
+  background: var(--border-light);
+  margin: 1rem 0;
+}
+
+/* Loading spinner */
+.spinner {
+  border: 3px solid var(--border-light);
+  border-top: 3px solid var(--accent-medium);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
