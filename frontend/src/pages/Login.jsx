@@ -63,7 +63,7 @@ function Login() {
                   : "linear-gradient(135deg, #5c4a3a 0%, #4a3b2e 100%)",
             }}
           >
-            <span className="text-3xl">☕</span>
+            <span className="text-3xl">📝</span>
           </div>
           <h1
             className="text-3xl font-bold"

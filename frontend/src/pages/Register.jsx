@@ -72,17 +72,6 @@ function Register() {
         }`}
       >
         <div className="text-center mb-6">
-          <div
-            className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4 shadow-lg"
-            style={{
-              background:
-                theme === "light"
-                  ? "linear-gradient(135deg, #d4b896 0%, #c4a87a 100%)"
-                  : "linear-gradient(135deg, #5c4a3a 0%, #4a3b2e 100%)",
-            }}
-          >
-            <span className="text-2xl">☕</span>
-          </div>
           <h1
             className="text-2xl font-bold"
             style={{
@@ -183,7 +172,7 @@ function Register() {
                       : "bg-[#362b22] text-[#d4c5b5] hover:bg-[#4a3b2e]"
                 }`}
               >
-                📚 Ученик
+                Ученик
               </button>
               <button
                 type="button"
@@ -196,7 +185,7 @@ function Register() {
                       : "bg-[#362b22] text-[#d4c5b5] hover:bg-[#4a3b2e]"
                 }`}
               >
-                👨‍💼 Админ
+                Админ
               </button>
             </div>
           </div>

@@ -16,10 +16,10 @@ function Navbar() {
   };
 
   const navLinks = [
-    { label: "Главная", path: "/", icon: "🏠" },
-    { label: "Профиль", path: "/profile", icon: "👤" },
+    { label: "Главная", path: "/" },
+    { label: "Профиль", path: "/profile" },
     ...(user?.role === "admin"
-      ? [{ label: "Админ-панель", path: "/admin", icon: "⚙️" }]
+      ? [{ label: "Админ-панель", path: "/admin" }]
       : []),
   ];
 
@@ -47,7 +47,7 @@ function Navbar() {
                     : "linear-gradient(135deg, #5c4a3a 0%, #4a3b2e 100%)",
               }}
             >
-              <span className="text-white text-xl">☕</span>
+              <span className="text-white text-xl">📝</span>
             </div>
             <div>
               <span
@@ -56,11 +56,6 @@ function Navbar() {
                 }`}
               >
                 SmartTest
-              </span>
-              <span
-                className={`text-xs ml-1 ${theme === "light" ? "text-[#a88b74]" : "text-[#6b4c3a]"}`}
-              >
-                by AI
               </span>
             </div>
           </div>
@@ -90,28 +85,6 @@ function Navbar() {
               />
 
               <div className="flex items-center space-x-3">
-                <div className="flex items-center space-x-2">
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center"
-                    style={{
-                      background:
-                        theme === "light"
-                          ? "linear-gradient(135deg, #d4b896 0%, #c4a87a 100%)"
-                          : "linear-gradient(135deg, #5c4a3a 0%, #4a3b2e 100%)",
-                    }}
-                  >
-                    <span className="text-white text-sm">
-                      {user?.email?.charAt(0).toUpperCase() || "U"}
-                    </span>
-                  </div>
-                  <span
-                    className={`text-sm font-medium ${
-                      theme === "light" ? "text-[#6b4c3a]" : "text-[#d4c5b5]"
-                    }`}
-                  >
-                    {user?.email?.split("@")[0]}
-                  </span>
-                </div>
                 <button
                   onClick={handleLogout}
                   className={`px-3 py-1.5 rounded-xl transition-all duration-200 flex items-center space-x-1 ${
@@ -120,7 +93,7 @@ function Navbar() {
                       : "bg-[#362b22] text-[#c4a87a] hover:bg-[#4a3b2e]"
                   }`}
                 >
-                  <span>🚪</span>
+                  <span></span>
                   <span className="text-sm">Выйти</span>
                 </button>
               </div>
@@ -200,7 +173,7 @@ function Navbar() {
                 onClick={handleLogout}
                 className="w-full text-left px-3 py-2 rounded-xl flex items-center space-x-3 text-[#c4a87a] hover:bg-[#362b22]"
               >
-                <span>🚪</span>
+                <span></span>
                 <span>Выйти</span>
               </button>
             </div>

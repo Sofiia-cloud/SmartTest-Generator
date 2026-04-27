@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 import { auth, quizzes } from "../services/api";
 
 function Profile() {
@@ -27,6 +28,7 @@ function Profile() {
   const [message, setMessage] = useState({ text: "", type: "" });
   const navigate = useNavigate();
   const { logout, updateUser, user: authUser } = useAuth();
+  const { theme } = useTheme();
 
   useEffect(() => {
     loadProfile();
@@ -62,7 +64,6 @@ function Profile() {
     try {
       const response = await auth.updateProfile(formData);
       setProfile(response.data.user);
-      // Обновляем пользователя в контексте
       updateUser(response.data.user);
       setEditing(false);
       setMessage({ text: "Профиль успешно обновлен!", type: "success" });
@@ -113,49 +114,28 @@ function Profile() {
   };
 
   const handleLogout = () => {
-    logout(); // Используем контекст для выхода
+    logout();
     navigate("/login");
   };
 
   return (
-    <div className="min-h-screen bg-gray-900">
-      {/* Навигация */}
-      <nav className="bg-gray-800 shadow-lg border-b border-gray-700 p-4">
-        <div className="max-w-7xl mx-auto flex justify-between items-center flex-wrap gap-2">
-          <h1 className="text-2xl font-bold text-purple-400">Личный кабинет</h1>
-          <div className="flex gap-3 flex-wrap">
-            {authUser?.role === "admin" && (
-              <button
-                onClick={() => navigate("/admin")}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition"
-              >
-                ⚙️ Админ-панель
-              </button>
-            )}
-            <button
-              onClick={() => navigate("/")}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition"
-            >
-              🏠 На главную
-            </button>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition"
-            >
-              🚪 Выйти
-            </button>
-          </div>
-        </div>
-      </nav>
-
+    <div
+      className={`min-h-screen transition-colors duration-300 ${
+        theme === "light" ? "bg-[#faf7f2]" : "bg-[#1a1410]"
+      }`}
+    >
       <main className="max-w-7xl mx-auto px-4 py-8">
-        {/* Сообщения */}
+        {/* Messages */}
         {message.text && (
           <div
-            className={`mb-6 p-4 rounded-lg ${
+            className={`mb-6 p-4 rounded-xl transition-all duration-300 ${
               message.type === "success"
-                ? "bg-green-900/50 border border-green-700 text-green-300"
-                : "bg-red-900/50 border border-red-700 text-red-300"
+                ? theme === "light"
+                  ? "bg-green-50 border border-green-200 text-green-700"
+                  : "bg-green-900/20 border border-green-800 text-green-400"
+                : theme === "light"
+                  ? "bg-red-50 border border-red-200 text-red-700"
+                  : "bg-red-900/20 border border-red-800 text-red-400"
             }`}
           >
             {message.text}
@@ -163,36 +143,86 @@ function Profile() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Информация о пользователе */}
+          {/* User Info Card */}
           <div className="lg:col-span-1">
-            <div className="bg-gray-800 rounded-xl p-6 sticky top-8">
+            <div
+              className={`sticky top-8 rounded-2xl p-6 transition-all duration-300 ${
+                theme === "light"
+                  ? "bg-white border border-[#e8ddd0] shadow-sm"
+                  : "bg-[#241d17] border border-[#362b22] shadow-lg"
+              }`}
+            >
               <div className="text-center mb-6">
-                <div className="w-24 h-24 bg-purple-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-4">
-                  {profile.first_name
-                    ? profile.first_name[0].toUpperCase()
-                    : authUser?.email?.[0]?.toUpperCase() || "?"}
+                <div
+                  className="w-24 h-24 mx-auto mb-4 rounded-2xl flex items-center justify-center shadow-md"
+                  style={{
+                    background:
+                      theme === "light"
+                        ? "linear-gradient(135deg, #d4b896 0%, #c4a87a 100%)"
+                        : "linear-gradient(135deg, #5c4a3a 0%, #4a3b2e 100%)",
+                  }}
+                >
+                  <span className="text-4xl text-white">
+                    {profile.first_name
+                      ? profile.first_name[0].toUpperCase()
+                      : authUser?.email?.[0]?.toUpperCase() || "?"}
+                  </span>
                 </div>
-                <h2 className="text-xl font-bold">
+                <h2
+                  className={`text-xl font-bold ${
+                    theme === "light" ? "text-[#3d2b1f]" : "text-[#f5ede0]"
+                  }`}
+                >
                   {profile.first_name || profile.last_name
                     ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim()
-                    : authUser?.email || "Пользователь"}
+                    : authUser?.email?.split("@")[0] || "Пользователь"}
                 </h2>
-                <p className="text-gray-400 mt-1">
-                  {profile.role === "admin" ? "👨‍💼 Администратор" : "🎓 Студент"}
+                <p
+                  className={`text-sm mt-1 ${theme === "light" ? "text-[#a88b74]" : "text-[#6b4c3a]"}`}
+                >
+                  {profile.role === "admin" ? "Администратор" : "Студент"}
                 </p>
-                <p className="text-sm text-gray-500 mt-2">{profile.email}</p>
+                <p
+                  className={`text-xs mt-2 ${theme === "light" ? "text-[#c4afa0]" : "text-[#5c4a3a]"}`}
+                >
+                  {profile.email}
+                </p>
               </div>
 
-              <div className="border-t border-gray-700 pt-4">
-                <h3 className="font-semibold mb-3">Статистика</h3>
+              <div
+                className={`pt-4 border-t ${theme === "light" ? "border-[#e8ddd0]" : "border-[#362b22]"}`}
+              >
+                <h3
+                  className={`font-semibold mb-3 ${theme === "light" ? "text-[#3d2b1f]" : "text-[#f5ede0]"}`}
+                >
+                  Статистика
+                </h3>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-400">Пройдено тестов:</span>
-                    <span className="font-semibold">{attempts.length}</span>
+                    <span
+                      className={
+                        theme === "light" ? "text-[#a88b74]" : "text-[#6b4c3a]"
+                      }
+                    >
+                      Пройдено тестов:
+                    </span>
+                    <span
+                      className={`font-semibold ${theme === "light" ? "text-[#3d2b1f]" : "text-[#f5ede0]"}`}
+                    >
+                      {attempts.length}
+                    </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-400">Средний балл:</span>
-                    <span className="font-semibold">
+                    <span
+                      className={
+                        theme === "light" ? "text-[#a88b74]" : "text-[#6b4c3a]"
+                      }
+                    >
+                      Средний балл:
+                    </span>
+                    <span
+                      className={`font-semibold ${theme === "light" ? "text-[#3d2b1f]" : "text-[#f5ede0]"}`}
+                    >
                       {attempts.length > 0
                         ? Math.round(
                             attempts.reduce(
@@ -205,8 +235,16 @@ function Profile() {
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-400">Дата регистрации:</span>
-                    <span className="font-semibold">
+                    <span
+                      className={
+                        theme === "light" ? "text-[#a88b74]" : "text-[#6b4c3a]"
+                      }
+                    >
+                      Дата регистрации:
+                    </span>
+                    <span
+                      className={`font-semibold ${theme === "light" ? "text-[#3d2b1f]" : "text-[#f5ede0]"}`}
+                    >
                       {profile.created_at
                         ? new Date(profile.created_at).toLocaleDateString()
                         : "—"}
@@ -217,16 +255,32 @@ function Profile() {
             </div>
           </div>
 
-          {/* Редактирование профиля */}
+          {/* Edit Forms */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Карточка редактирования профиля */}
-            <div className="bg-gray-800 rounded-xl p-6">
+            {/* Profile Edit Card */}
+            <div
+              className={`rounded-2xl p-6 transition-all duration-300 ${
+                theme === "light"
+                  ? "bg-white border border-[#e8ddd0] shadow-sm"
+                  : "bg-[#241d17] border border-[#362b22] shadow-lg"
+              }`}
+            >
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">👤 Личные данные</h2>
+                <h2
+                  className={`text-xl font-bold flex items-center gap-2 ${
+                    theme === "light" ? "text-[#3d2b1f]" : "text-[#f5ede0]"
+                  }`}
+                >
+                  Личные данные
+                </h2>
                 {!editing && (
                   <button
                     onClick={() => setEditing(true)}
-                    className="px-4 py-2 bg-purple-600 rounded-lg text-sm hover:bg-purple-700 transition"
+                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                      theme === "light"
+                        ? "bg-[#d4b896] text-[#3d2b1f] hover:bg-[#c4a87a]"
+                        : "bg-[#5c4a3a] text-[#f5ede0] hover:bg-[#4a3b2e]"
+                    }`}
                   >
                     Редактировать
                   </button>
@@ -236,7 +290,11 @@ function Profile() {
               {editing ? (
                 <form onSubmit={handleUpdateProfile} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2">
+                    <label
+                      className={`block text-sm font-medium mb-2 ${
+                        theme === "light" ? "text-[#6b4c3a]" : "text-[#d4c5b5]"
+                      }`}
+                    >
                       Имя
                     </label>
                     <input
@@ -245,12 +303,20 @@ function Profile() {
                       onChange={(e) =>
                         setFormData({ ...formData, first_name: e.target.value })
                       }
-                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-purple-500"
+                      className={`w-full px-4 py-2 rounded-xl transition-all duration-200 focus:ring-2 focus:ring-[#c4a87a] ${
+                        theme === "light"
+                          ? "bg-[#faf7f2] border border-[#e8ddd0] text-[#3d2b1f]"
+                          : "bg-[#2d241d] border border-[#362b22] text-[#f5ede0]"
+                      }`}
                       placeholder="Введите имя"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">
+                    <label
+                      className={`block text-sm font-medium mb-2 ${
+                        theme === "light" ? "text-[#6b4c3a]" : "text-[#d4c5b5]"
+                      }`}
+                    >
                       Фамилия
                     </label>
                     <input
@@ -259,14 +325,22 @@ function Profile() {
                       onChange={(e) =>
                         setFormData({ ...formData, last_name: e.target.value })
                       }
-                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-purple-500"
+                      className={`w-full px-4 py-2 rounded-xl transition-all duration-200 focus:ring-2 focus:ring-[#c4a87a] ${
+                        theme === "light"
+                          ? "bg-[#faf7f2] border border-[#e8ddd0] text-[#3d2b1f]"
+                          : "bg-[#2d241d] border border-[#362b22] text-[#f5ede0]"
+                      }`}
                       placeholder="Введите фамилию"
                     />
                   </div>
                   <div className="flex gap-3">
                     <button
                       type="submit"
-                      className="px-6 py-2 bg-green-600 rounded-lg hover:bg-green-700 transition"
+                      className={`px-6 py-2 rounded-xl font-medium transition-all duration-200 ${
+                        theme === "light"
+                          ? "bg-[#c4a87a] text-[#3d2b1f] hover:bg-[#d4b896]"
+                          : "bg-[#4a3b2e] text-[#f5ede0] hover:bg-[#5c4a3a]"
+                      }`}
                     >
                       Сохранить
                     </button>
@@ -279,7 +353,11 @@ function Profile() {
                           last_name: profile.last_name || "",
                         });
                       }}
-                      className="px-6 py-2 bg-gray-600 rounded-lg hover:bg-gray-700 transition"
+                      className={`px-6 py-2 rounded-xl font-medium transition-all duration-200 ${
+                        theme === "light"
+                          ? "bg-[#f0e9df] text-[#6b4c3a] hover:bg-[#e8ddd0]"
+                          : "bg-[#362b22] text-[#d4c5b5] hover:bg-[#4a3b2e]"
+                      }`}
                     >
                       Отмена
                     </button>
@@ -287,30 +365,94 @@ function Profile() {
                 </form>
               ) : (
                 <div className="space-y-3">
-                  <div className="flex items-center py-2 border-b border-gray-700">
-                    <span className="w-24 text-gray-400">Имя:</span>
-                    <span>{profile.first_name || "—"}</span>
+                  <div
+                    className={`flex items-center py-2 border-b ${
+                      theme === "light"
+                        ? "border-[#e8ddd0]"
+                        : "border-[#362b22]"
+                    }`}
+                  >
+                    <span
+                      className={`w-24 text-sm ${theme === "light" ? "text-[#a88b74]" : "text-[#6b4c3a]"}`}
+                    >
+                      Имя:
+                    </span>
+                    <span
+                      className={
+                        theme === "light" ? "text-[#3d2b1f]" : "text-[#f5ede0]"
+                      }
+                    >
+                      {profile.first_name || "—"}
+                    </span>
                   </div>
-                  <div className="flex items-center py-2 border-b border-gray-700">
-                    <span className="w-24 text-gray-400">Фамилия:</span>
-                    <span>{profile.last_name || "—"}</span>
+                  <div
+                    className={`flex items-center py-2 border-b ${
+                      theme === "light"
+                        ? "border-[#e8ddd0]"
+                        : "border-[#362b22]"
+                    }`}
+                  >
+                    <span
+                      className={`w-24 text-sm ${theme === "light" ? "text-[#a88b74]" : "text-[#6b4c3a]"}`}
+                    >
+                      Фамилия:
+                    </span>
+                    <span
+                      className={
+                        theme === "light" ? "text-[#3d2b1f]" : "text-[#f5ede0]"
+                      }
+                    >
+                      {profile.last_name || "—"}
+                    </span>
                   </div>
-                  <div className="flex items-center py-2 border-b border-gray-700">
-                    <span className="w-24 text-gray-400">Email:</span>
-                    <span>{profile.email}</span>
+                  <div
+                    className={`flex items-center py-2 border-b ${
+                      theme === "light"
+                        ? "border-[#e8ddd0]"
+                        : "border-[#362b22]"
+                    }`}
+                  >
+                    <span
+                      className={`w-24 text-sm ${theme === "light" ? "text-[#a88b74]" : "text-[#6b4c3a]"}`}
+                    >
+                      Email:
+                    </span>
+                    <span
+                      className={
+                        theme === "light" ? "text-[#3d2b1f]" : "text-[#f5ede0]"
+                      }
+                    >
+                      {profile.email}
+                    </span>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Карточка смены пароля */}
-            <div className="bg-gray-800 rounded-xl p-6">
+            {/* Password Change Card */}
+            <div
+              className={`rounded-2xl p-6 transition-all duration-300 ${
+                theme === "light"
+                  ? "bg-white border border-[#e8ddd0] shadow-sm"
+                  : "bg-[#241d17] border border-[#362b22] shadow-lg"
+              }`}
+            >
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">🔒 Безопасность</h2>
+                <h2
+                  className={`text-xl font-bold flex items-center gap-2 ${
+                    theme === "light" ? "text-[#3d2b1f]" : "text-[#f5ede0]"
+                  }`}
+                >
+                  Безопасность
+                </h2>
                 {!changingPassword && (
                   <button
                     onClick={() => setChangingPassword(true)}
-                    className="px-4 py-2 bg-purple-600 rounded-lg text-sm hover:bg-purple-700 transition"
+                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                      theme === "light"
+                        ? "bg-[#d4b896] text-[#3d2b1f] hover:bg-[#c4a87a]"
+                        : "bg-[#5c4a3a] text-[#f5ede0] hover:bg-[#4a3b2e]"
+                    }`}
                   >
                     Сменить пароль
                   </button>
@@ -320,7 +462,11 @@ function Profile() {
               {changingPassword ? (
                 <form onSubmit={handleChangePassword} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2">
+                    <label
+                      className={`block text-sm font-medium mb-2 ${
+                        theme === "light" ? "text-[#6b4c3a]" : "text-[#d4c5b5]"
+                      }`}
+                    >
                       Текущий пароль
                     </label>
                     <input
@@ -332,12 +478,20 @@ function Profile() {
                           current_password: e.target.value,
                         })
                       }
-                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-purple-500"
+                      className={`w-full px-4 py-2 rounded-xl transition-all duration-200 focus:ring-2 focus:ring-[#c4a87a] ${
+                        theme === "light"
+                          ? "bg-[#faf7f2] border border-[#e8ddd0] text-[#3d2b1f]"
+                          : "bg-[#2d241d] border border-[#362b22] text-[#f5ede0]"
+                      }`}
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">
+                    <label
+                      className={`block text-sm font-medium mb-2 ${
+                        theme === "light" ? "text-[#6b4c3a]" : "text-[#d4c5b5]"
+                      }`}
+                    >
                       Новый пароль
                     </label>
                     <input
@@ -349,12 +503,20 @@ function Profile() {
                           new_password: e.target.value,
                         })
                       }
-                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-purple-500"
+                      className={`w-full px-4 py-2 rounded-xl transition-all duration-200 focus:ring-2 focus:ring-[#c4a87a] ${
+                        theme === "light"
+                          ? "bg-[#faf7f2] border border-[#e8ddd0] text-[#3d2b1f]"
+                          : "bg-[#2d241d] border border-[#362b22] text-[#f5ede0]"
+                      }`}
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">
+                    <label
+                      className={`block text-sm font-medium mb-2 ${
+                        theme === "light" ? "text-[#6b4c3a]" : "text-[#d4c5b5]"
+                      }`}
+                    >
                       Подтверждение нового пароля
                     </label>
                     <input
@@ -366,14 +528,22 @@ function Profile() {
                           confirm_password: e.target.value,
                         })
                       }
-                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:border-purple-500"
+                      className={`w-full px-4 py-2 rounded-xl transition-all duration-200 focus:ring-2 focus:ring-[#c4a87a] ${
+                        theme === "light"
+                          ? "bg-[#faf7f2] border border-[#e8ddd0] text-[#3d2b1f]"
+                          : "bg-[#2d241d] border border-[#362b22] text-[#f5ede0]"
+                      }`}
                       required
                     />
                   </div>
                   <div className="flex gap-3">
                     <button
                       type="submit"
-                      className="px-6 py-2 bg-green-600 rounded-lg hover:bg-green-700 transition"
+                      className={`px-6 py-2 rounded-xl font-medium transition-all duration-200 ${
+                        theme === "light"
+                          ? "bg-[#c4a87a] text-[#3d2b1f] hover:bg-[#d4b896]"
+                          : "bg-[#4a3b2e] text-[#f5ede0] hover:bg-[#5c4a3a]"
+                      }`}
                     >
                       Сменить
                     </button>
@@ -387,60 +557,155 @@ function Profile() {
                           confirm_password: "",
                         });
                       }}
-                      className="px-6 py-2 bg-gray-600 rounded-lg hover:bg-gray-700 transition"
+                      className={`px-6 py-2 rounded-xl font-medium transition-all duration-200 ${
+                        theme === "light"
+                          ? "bg-[#f0e9df] text-[#6b4c3a] hover:bg-[#e8ddd0]"
+                          : "bg-[#362b22] text-[#d4c5b5] hover:bg-[#4a3b2e]"
+                      }`}
                     >
                       Отмена
                     </button>
                   </div>
                 </form>
               ) : (
-                <div className="text-center py-4 text-gray-400">
+                <div
+                  className={`text-center py-4 text-sm ${
+                    theme === "light" ? "text-[#a88b74]" : "text-[#6b4c3a]"
+                  }`}
+                >
                   Пароль можно изменить в любой момент
                 </div>
               )}
             </div>
 
-            {/* История прохождений */}
-            <div className="bg-gray-800 rounded-xl p-6">
-              <h2 className="text-xl font-bold mb-4">📊 История прохождений</h2>
+            {/* History Card */}
+            <div
+              className={`rounded-2xl p-6 transition-all duration-300 ${
+                theme === "light"
+                  ? "bg-white border border-[#e8ddd0] shadow-sm"
+                  : "bg-[#241d17] border border-[#362b22] shadow-lg"
+              }`}
+            >
+              <h2
+                className={`text-xl font-bold flex items-center gap-2 mb-4 ${
+                  theme === "light" ? "text-[#3d2b1f]" : "text-[#f5ede0]"
+                }`}
+              >
+                История прохождений
+              </h2>
+
               {loading ? (
                 <div className="text-center py-8">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
-                  <p className="mt-2 text-gray-400">Загрузка...</p>
+                  <div className="inline-block w-6 h-6 border-2 border-[#c4a87a] border-t-transparent rounded-full animate-spin"></div>
+                  <p
+                    className={`mt-2 text-sm ${theme === "light" ? "text-[#a88b74]" : "text-[#6b4c3a]"}`}
+                  >
+                    Загрузка...
+                  </p>
                 </div>
               ) : attempts.length === 0 ? (
-                <div className="text-center py-8 text-gray-400">
-                  📭 Вы ещё не прошли ни одного теста
+                <div
+                  className={`text-center py-8 text-sm ${
+                    theme === "light" ? "text-[#a88b74]" : "text-[#6b4c3a]"
+                  }`}
+                >
+                  Вы ещё не прошли ни одного теста
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b border-gray-700">
-                        <th className="text-left py-2">Дата</th>
-                        <th className="text-left py-2">Тест</th>
-                        <th className="text-left py-2">Результат</th>
-                        <th className="text-left py-2">Статус</th>
+                      <tr
+                        className={`border-b ${
+                          theme === "light"
+                            ? "border-[#e8ddd0]"
+                            : "border-[#362b22]"
+                        }`}
+                      >
+                        <th
+                          className={`text-left py-2 text-sm font-semibold ${
+                            theme === "light"
+                              ? "text-[#6b4c3a]"
+                              : "text-[#d4c5b5]"
+                          }`}
+                        >
+                          Дата
+                        </th>
+                        <th
+                          className={`text-left py-2 text-sm font-semibold ${
+                            theme === "light"
+                              ? "text-[#6b4c3a]"
+                              : "text-[#d4c5b5]"
+                          }`}
+                        >
+                          Тест
+                        </th>
+                        <th
+                          className={`text-left py-2 text-sm font-semibold ${
+                            theme === "light"
+                              ? "text-[#6b4c3a]"
+                              : "text-[#d4c5b5]"
+                          }`}
+                        >
+                          Результат
+                        </th>
+                        <th
+                          className={`text-left py-2 text-sm font-semibold ${
+                            theme === "light"
+                              ? "text-[#6b4c3a]"
+                              : "text-[#d4c5b5]"
+                          }`}
+                        >
+                          Статус
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {attempts.map((attempt) => (
                         <tr
                           key={attempt.id}
-                          className="border-b border-gray-700 hover:bg-gray-700/50 transition"
+                          className={`border-b transition-colors ${
+                            theme === "light"
+                              ? "border-[#e8ddd0] hover:bg-[#faf7f2]"
+                              : "border-[#362b22] hover:bg-[#2d241d]"
+                          }`}
                         >
-                          <td className="py-2 text-sm">
+                          <td
+                            className={`py-2 text-sm ${
+                              theme === "light"
+                                ? "text-[#6b4c3a]"
+                                : "text-[#d4c5b5]"
+                            }`}
+                          >
                             {new Date(attempt.started_at).toLocaleDateString()}
                           </td>
-                          <td className="py-2">{attempt.quiz_title}</td>
-                          <td className="py-2 font-semibold">
+                          <td
+                            className={`py-2 ${
+                              theme === "light"
+                                ? "text-[#3d2b1f]"
+                                : "text-[#f5ede0]"
+                            }`}
+                          >
+                            {attempt.quiz_title}
+                          </td>
+                          <td
+                            className={`py-2 font-semibold ${
+                              theme === "light"
+                                ? "text-[#3d2b1f]"
+                                : "text-[#f5ede0]"
+                            }`}
+                          >
                             {attempt.score_percent}%
                           </td>
                           <td className="py-2">
                             {attempt.passed ? (
-                              <span className="text-green-400">✅ Сдано</span>
+                              <span className="text-green-600 dark:text-green-400 text-sm">
+                                Сдано
+                              </span>
                             ) : (
-                              <span className="text-red-400">❌ Не сдано</span>
+                              <span className="text-red-600 dark:text-red-400 text-sm">
+                                Не сдано
+                              </span>
                             )}
                           </td>
                         </tr>
