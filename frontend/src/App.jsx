@@ -11,6 +11,12 @@ function App() {
   const token = localStorage.getItem("token");
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
+  // Функция для редиректа в зависимости от роли
+  const getDefaultRoute = () => {
+    if (!token) return "/login";
+    return user.role === "admin" ? "/admin" : "/";
+  };
+
   if (!token) {
     return (
       <BrowserRouter>
@@ -26,14 +32,21 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Dashboard />} />
+        <Route
+          path="/"
+          element={
+            user.role === "admin" ? <Navigate to="/admin" /> : <Dashboard />
+          }
+        />
         <Route
           path="/admin"
           element={user.role === "admin" ? <AdminPanel /> : <Navigate to="/" />}
         />
         <Route path="/quiz/:id" element={<TakeQuiz />} />
         <Route path="/profile" element={<Profile />} />
-        <Route path="*" element={<Navigate to="/" />} />
+        <Route path="/login" element={<Navigate to={getDefaultRoute()} />} />
+        <Route path="/register" element={<Navigate to={getDefaultRoute()} />} />
+        <Route path="*" element={<Navigate to={getDefaultRoute()} />} />
       </Routes>
     </BrowserRouter>
   );
