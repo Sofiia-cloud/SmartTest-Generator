@@ -6,6 +6,11 @@ export const register = async (req, res) => {
   try {
     const { email, password, role = "student" } = req.body;
 
+    // Валидация роли (только admin или student)
+    const validRoles = ["admin", "student"];
+    const userRole = validRoles.includes(role) ? role : "student";
+
+    // Проверка существующего пользователя
     const existingUser = await pool.query(
       "SELECT * FROM users WHERE email = $1",
       [email],
@@ -16,12 +21,16 @@ export const register = async (req, res) => {
         .json({ error: "Пользователь с таким email уже существует" });
     }
 
+    // Хеширование пароля
     const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Создание пользователя
     const result = await pool.query(
       "INSERT INTO users (email, password_hash, role) VALUES ($1, $2, $3) RETURNING id, email, role",
-      [email, hashedPassword, role],
+      [email, hashedPassword, userRole],
     );
 
+    // Создание JWT токена
     const token = jwt.sign(
       {
         id: result.rows[0].id,
@@ -32,7 +41,15 @@ export const register = async (req, res) => {
       { expiresIn: "7d" },
     );
 
-    res.json({ token, user: result.rows[0] });
+    // Логирование
+    console.log(
+      `[${new Date().toISOString()}] Новый пользователь: ${email}, роль: ${userRole}`,
+    );
+
+    res.json({
+      token,
+      user: result.rows[0],
+    });
   } catch (error) {
     console.error("Registration error:", error);
     res.status(500).json({ error: "Ошибка регистрации" });

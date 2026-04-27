@@ -96,8 +96,8 @@ function TakeQuiz() {
                   {idx + 1}. {detail.questionText}
                 </p>
                 <p className="text-sm text-gray-400">
-                  Ваш ответ:{detail.userAnswerText}{" "}
-                  {detail.userAnswerId === detail.correctAnswerId ? "✓" : "✗"}
+                  Ваш ответ:
+                  {detail.userAnswerId === detail.correctAnswerId ? "Верно ✓" : "Неверно ✗"}
                   <br />
                   Правильный ответ: {detail.correctAnswerText}
                 </p>
