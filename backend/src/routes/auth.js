@@ -8,17 +8,56 @@ import {
   changePassword,
 } from "../controllers/authController.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { auditLog } from "../middleware/auditLog.js"; // 👈 импортируем логирование
 
 const router = express.Router();
 
-// Публичные маршруты
-router.post("/register", register);
-router.post("/login", login);
+// ========== ПУБЛИЧНЫЕ МАРШРУТЫ (без authMiddleware) ==========
 
-// Защищенные маршруты
+// Регистрация
+router.post(
+  "/register",
+  auditLog("REGISTRATION", async (req) => {
+    return `Email: ${req.body.email}, role: ${req.body.role || "student"}`;
+  }),
+  register,
+);
+
+// Вход в систему
+router.post(
+  "/login",
+  auditLog("LOGIN", async (req) => {
+    return `Email: ${req.body.email}`;
+  }),
+  login,
+);
+
+// ========== ЗАЩИЩЁННЫЕ МАРШРУТЫ (с authMiddleware) ==========
+
+// Получение своего профиля
 router.get("/me", authMiddleware, getMe);
+
+// Получение профиля (детальный)
 router.get("/profile", authMiddleware, getProfile);
-router.put("/profile", authMiddleware, updateProfile);
-router.put("/change-password", authMiddleware, changePassword);
+
+// Обновление профиля
+router.put(
+  "/profile",
+  authMiddleware,
+  auditLog("UPDATE_PROFILE", async (req) => {
+    return `Пользователь ${req.user.email} обновил имя/фамилию`;
+  }),
+  updateProfile,
+);
+
+// Смена пароля
+router.put(
+  "/change-password",
+  authMiddleware,
+  auditLog("CHANGE_PASSWORD", async (req) => {
+    return `Пользователь ${req.user.email} сменил пароль`;
+  }),
+  changePassword,
+);
 
 export default router;
